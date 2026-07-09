@@ -1,0 +1,221 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Cortemo base
+   ============================================================ */
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.serif {
+  font-family: 'Instrument Serif', serif !important;
+  font-weight: 400;
+}
+
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.toast {
+  animation: toastIn 0.25s ease;
+}
+
+/* categoriekaart: leeg vlak wanneer er geen foto is */
+.cat-card.is-empty .cat-grad {
+  opacity: 0;
+}
+.cat-card.is-empty .cat-cap-eyebrow,
+.cat-card.is-empty .cat-cap-sub {
+  display: none;
+}
+.cat-card.is-empty {
+  background: #eae8e3;
+}
+.cat-card.is-empty .cat-cap-title {
+  color: #1f2937;
+}
+
+/* ============================================================
+   Cortemo thema: donker (standaard) en subtiel warm-licht.
+   Scope: .page-shell en .cortemo-footer.
+   Tekst boven foto's/video blijft wit via .on-media.
+   ============================================================ */
+.page-shell {
+  background:
+    radial-gradient(900px 420px at 85% -5%, rgba(217, 90, 43, 0.16), transparent),
+    linear-gradient(to bottom, #101418 0%, #14191e 60%, #1a150f 100%);
+}
+.cortemo-footer {
+  background: linear-gradient(to bottom, #14191e, #101418);
+}
+
+/* ---------- licht thema: warm greige, subtiel maar met contrast ---------- */
+[data-theme='light'] .page-shell {
+  background:
+    radial-gradient(900px 420px at 85% -5%, rgba(217, 90, 43, 0.12), transparent),
+    linear-gradient(to bottom, #ede8df 0%, #e7e0d4 60%, #e2d8c7 100%);
+}
+[data-theme='light'] .cortemo-footer {
+  background: linear-gradient(to bottom, #e0d6c4, #d8ccb7);
+}
+
+/* tekst */
+[data-theme='light'] .page-shell.text-white,
+[data-theme='light'] .cortemo-footer.text-white,
+[data-theme='light'] .page-shell .text-white,
+[data-theme='light'] .cortemo-footer .text-white {
+  color: #1f2937;
+}
+[data-theme='light'] .page-shell .text-white\/90,
+[data-theme='light'] .page-shell .text-white\/85,
+[data-theme='light'] .page-shell .text-white\/80,
+[data-theme='light'] .page-shell .text-white\/70,
+[data-theme='light'] .cortemo-footer .text-white\/70 {
+  color: #374151;
+}
+[data-theme='light'] .page-shell .text-white\/60,
+[data-theme='light'] .page-shell .text-white\/55,
+[data-theme='light'] .page-shell .text-white\/50,
+[data-theme='light'] .cortemo-footer .text-white\/50 {
+  color: #4b5563;
+}
+[data-theme='light'] .page-shell .text-white\/40,
+[data-theme='light'] .page-shell .text-white\/35,
+[data-theme='light'] .cortemo-footer .text-white\/40 {
+  color: #6b7280;
+}
+[data-theme='light'] .page-shell .hover\:text-white:hover,
+[data-theme='light'] .cortemo-footer .hover\:text-white:hover {
+  color: #1f2937;
+}
+/* witte tekst op gekleurde knoppen blijft wit */
+[data-theme='light'] .page-shell .bg-rust,
+[data-theme='light'] .page-shell .bg-rust *,
+[data-theme='light'] .page-shell .bg-ink,
+[data-theme='light'] .page-shell .bg-ok {
+  color: #fff;
+}
+/* invoervelden: placeholders leesbaar op licht */
+[data-theme='light'] .page-shell input::placeholder,
+[data-theme='light'] .page-shell textarea::placeholder {
+  color: rgba(31, 41, 55, 0.45);
+}
+[data-theme='light'] .page-shell input,
+[data-theme='light'] .page-shell textarea,
+[data-theme='light'] .page-shell select {
+  color: #1f2937;
+}
+
+/* vlakken en lijnen */
+[data-theme='light'] .page-shell .bg-white\/5 {
+  background-color: rgba(31, 41, 55, 0.05);
+}
+[data-theme='light'] .page-shell .bg-white\/10 {
+  background-color: rgba(31, 41, 55, 0.08);
+}
+[data-theme='light'] .page-shell .bg-white\/\[\.04\] {
+  background-color: rgba(31, 41, 55, 0.04);
+}
+[data-theme='light'] .page-shell .border-white\/5 {
+  border-color: rgba(31, 41, 55, 0.06);
+}
+[data-theme='light'] .page-shell .border-white\/10,
+[data-theme='light'] .cortemo-footer .border-white\/10 {
+  border-color: rgba(31, 41, 55, 0.12);
+}
+[data-theme='light'] .page-shell .border-white\/15 {
+  border-color: rgba(31, 41, 55, 0.16);
+}
+[data-theme='light'] .page-shell .divide-white\/5 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(31, 41, 55, 0.06);
+}
+[data-theme='light'] .page-shell .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(31, 41, 55, 0.1);
+}
+
+/* liquid glass op licht */
+[data-theme='light'] .page-shell .liquid-glass {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(31, 41, 55, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 10px 30px rgba(31, 41, 55, 0.1);
+}
+
+/* diep paneel: donker op dark, licht glas op light */
+.panel-deep {
+  background: rgba(8, 8, 10, 0.6);
+}
+[data-theme='light'] .page-shell .panel-deep {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* boven foto/video blijft alles wit, ongeacht thema */
+[data-theme='light'] .page-shell .on-media .text-white {
+  color: #fff;
+}
+[data-theme='light'] .page-shell .on-media .text-white\/90 {
+  color: rgba(255, 255, 255, 0.9);
+}
+[data-theme='light'] .page-shell .on-media .text-white\/85 {
+  color: rgba(255, 255, 255, 0.85);
+}
+[data-theme='light'] .page-shell .on-media .text-white\/80 {
+  color: rgba(255, 255, 255, 0.8);
+}
+[data-theme='light'] .page-shell .on-media .text-white\/75 {
+  color: rgba(255, 255, 255, 0.75);
+}
+[data-theme='light'] .page-shell .on-media .text-white\/70 {
+  color: rgba(255, 255, 255, 0.7);
+}
+[data-theme='light'] .page-shell .on-media .text-white\/60 {
+  color: rgba(255, 255, 255, 0.6);
+}
+[data-theme='light'] .page-shell .on-media .text-white\/55 {
+  color: rgba(255, 255, 255, 0.55);
+}
+[data-theme='light'] .page-shell .on-media .text-white\/50 {
+  color: rgba(255, 255, 255, 0.5);
+}
+[data-theme='light'] .page-shell .on-media .text-white\/40 {
+  color: rgba(255, 255, 255, 0.4);
+}
+[data-theme='light'] .page-shell .on-media .hover\:text-white:hover {
+  color: #fff;
+}
+[data-theme='light'] .page-shell .on-media .bg-white\/5 {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+[data-theme='light'] .page-shell .on-media .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+[data-theme='light'] .page-shell .on-media .border-white\/5 {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+[data-theme='light'] .page-shell .on-media .border-white\/10 {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+[data-theme='light'] .page-shell .on-media .border-white\/15 {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+[data-theme='light'] .page-shell .on-media .liquid-glass {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 30px rgba(0, 0, 0, 0.25);
+}
