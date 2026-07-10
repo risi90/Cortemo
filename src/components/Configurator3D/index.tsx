@@ -13,36 +13,11 @@ import {
 import { Scene } from './Scene'
 import { useConfiguratorStore, type CameraViewName } from '../../store/configuratorStore'
 import { CONFIG_TYPES, configType, type DimensionKey } from '../../data/configuratorSchema'
-import { calcPrice, type ConfigState } from '../../lib/pricing'
+import { calcPrice, validateConfig, type ConfigState } from '../../lib/pricing'
+import { parseCfg, serializeCfg } from '../../lib/cfg'
 import { euro } from '../../data/catalog'
 import { getActivePartner } from '../../lib/adminStore'
 import type { CartItem } from '../../lib/cart'
-
-/* ---------- config ↔ URL (delen & hervatten) ---------- */
-
-function serializeCfg(s: ConfigState): string {
-  const opts = Object.keys(s.options).filter((k) => s.options[k])
-  return [
-    s.typeId,
-    `${s.dims.l || 0}x${s.dims.b || 0}x${s.dims.h || 0}`,
-    String(s.thickness),
-    opts.join('-'),
-  ].join('.')
-}
-
-function parseCfg(raw: string): Partial<ConfigState> | null {
-  const [typeId, dims, thickness, opts] = raw.split('.')
-  if (!typeId || !CONFIG_TYPES.some((t) => t.id === typeId)) return null
-  const [l, b, h] = (dims || '').split('x').map((n) => parseInt(n, 10) || 0)
-  const options: Record<string, boolean> = {}
-  for (const o of (opts || '').split('-')) if (o) options[o] = true
-  return {
-    typeId: typeId as ConfigState['typeId'],
-    dims: { l, b, h },
-    thickness: parseInt(thickness, 10) || undefined,
-    options,
-  }
-}
 
 /* ---------- UI-bouwstenen ---------- */
 
@@ -156,6 +131,11 @@ export default function Configurator3D({
   const [copied, setCopied] = useState(false)
   const [showBreakdown, setShowBreakdown] = useState(false)
   const partner = getActivePartner()
+  const validation = useMemo(
+    () => validateConfig(state),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [typeId, dims.l, dims.b, dims.h, thickness, JSON.stringify(options)],
+  )
 
   // configuratie uit de URL hervatten (gedeelde links)
   useEffect(() => {
@@ -187,6 +167,7 @@ export default function Configurator3D({
   }
 
   const addToCart = () => {
+    if (validation.errors.length > 0) return
     const dimLine = type.dimensions
       .map((d) => `${d.label.charAt(0)} ${dims[d.key]}`)
       .join(' × ')
@@ -353,6 +334,22 @@ export default function Configurator3D({
             </div>
           </div>
 
+          {/* fabricage-meldingen */}
+          {(validation.errors.length > 0 || validation.warnings.length > 0) && (
+            <div className="space-y-1.5">
+              {validation.errors.map((msg) => (
+                <p key={msg} className="rounded-lg border border-rust/40 bg-rust/10 px-3 py-2 text-[12px] font-medium leading-relaxed text-rust" role="alert">
+                  {msg}
+                </p>
+              ))}
+              {validation.warnings.map((msg) => (
+                <p key={msg} className="rounded-lg bg-white/5 px-3 py-2 text-[12px] leading-relaxed text-white/70">
+                  ⚠ {msg}
+                </p>
+              ))}
+            </div>
+          )}
+
           {/* prijs */}
           <div className="border-t border-white/10 pt-4">
             <button
@@ -373,16 +370,28 @@ export default function Configurator3D({
                   <span className="tabular-nums">{euro(price.material)}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span>Lasersnijden &amp; zetwerk</span>
+                  <span className="tabular-nums">{euro(price.cutting + price.bending)}</span>
+                </div>
+                <div className="flex justify-between">
                   <span>Lassen &amp; afwerken</span>
-                  <span className="tabular-nums">{euro(price.labor)}</span>
+                  <span className="tabular-nums">{euro(price.welding)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Opties</span>
                   <span className="tabular-nums">{euro(price.optionsTotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Start- en handelingskosten</span>
-                  <span className="tabular-nums">{euro(price.base)}</span>
+                  <span>Werkvoorbereiding &amp; marge</span>
+                  <span className="tabular-nums">{euro(price.orderCosts + price.margin)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Verpakking &amp; verzending NL ({price.shippingClass})</span>
+                  <span className="tabular-nums">{euro(price.packaging + price.transport)}</span>
+                </div>
+                <div className="flex justify-between border-t border-white/10 pt-1">
+                  <span>Excl. btw</span>
+                  <span className="tabular-nums">{euro(price.exVat)}</span>
                 </div>
               </div>
             )}
@@ -412,8 +421,9 @@ export default function Configurator3D({
           <div className="flex gap-2">
             <button
               onClick={addToCart}
+              disabled={validation.errors.length > 0}
               className={
-                'flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-semibold text-white transition-all ' +
+                'flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50 ' +
                 (added ? 'bg-ok' : 'bg-rust hover:bg-rust-deep active:scale-[.99]')
               }
             >

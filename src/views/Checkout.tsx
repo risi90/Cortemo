@@ -60,7 +60,7 @@ export function Checkout({
       email: form.email,
       city: form.city,
       address: form.street + ', ' + form.zip + ' ' + form.city,
-      items: items.map(({ name, qty, unitPrice, config }) => ({ name, qty, unitPrice, config })),
+      items: items.map(({ name, qty, unitPrice, config, key }) => ({ name, qty, unitPrice, config, key })),
       total,
       discountCode: discount?.code ?? '',
       discountAmount,

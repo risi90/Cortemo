@@ -195,7 +195,8 @@ export function OffersAdmin({ draft, onDraftUsed }: { draft: OfferDraft | null; 
       email: offer.email,
       city: '',
       address: '',
-      items: offer.lines.map((l) => ({
+      items: offer.lines.map((l, i) => ({
+        key: offer.id + ':' + i,
         name: l.descr,
         qty: l.qty,
         unitPrice: l.price * (1 - offer.discount),

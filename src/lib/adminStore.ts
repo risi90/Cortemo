@@ -102,7 +102,7 @@ export type Order = {
   email: string
   city: string
   address: string
-  items: Pick<CartItem, 'name' | 'qty' | 'unitPrice' | 'config'>[]
+  items: Pick<CartItem, 'name' | 'qty' | 'unitPrice' | 'config' | 'key'>[]
   total: number
   discountCode: string
   discountAmount: number
@@ -265,10 +265,34 @@ export type PricingSettings = typeof PRICING
 
 const PRICING_KEY = 'cortemo-pricing'
 
-/** Synchling voor de prijsberekening: schema-defaults + cache-overrides. */
+/**
+ * Genormaliseerde merge: per blok (staal, snijden, …) en per subtabel worden
+ * opgeslagen waarden over de bladdefaults gelegd, zodat nieuw toegevoegde
+ * parameters altijd een default houden. Overrides in het oude platte formaat
+ * worden genegeerd.
+ */
+function normalizePricing(raw: unknown): PricingSettings {
+  const base = structuredClone(PRICING) as unknown as Record<string, Record<string, unknown>>
+  if (!raw || typeof raw !== 'object' || !('staal' in (raw as object))) {
+    return base as unknown as PricingSettings
+  }
+  const source = raw as Record<string, Record<string, unknown>>
+  for (const blok of Object.keys(base)) {
+    const rawBlok = source[blok]
+    if (!rawBlok || typeof rawBlok !== 'object') continue
+    for (const key of Object.keys(base[blok])) {
+      const d = base[blok][key]
+      const r = rawBlok[key]
+      if (r === undefined) continue
+      base[blok][key] = d && typeof d === 'object' ? { ...(d as object), ...(r as object) } : r
+    }
+  }
+  return base as unknown as PricingSettings
+}
+
+/** Synchling voor de prijsberekening: bladdefaults + cache-overrides. */
 export function getPricing(): PricingSettings {
-  const overrides = read<Partial<PricingSettings>>(PRICING_KEY, {})
-  return { ...PRICING, ...overrides }
+  return normalizePricing(read<unknown>(PRICING_KEY, null))
 }
 
 /** Haalt de tarieven uit de database en ververst de lokale cache. */
@@ -282,7 +306,7 @@ export async function fetchPricing(): Promise<PricingSettings> {
       .maybeSingle()
     if (data?.value) {
       write(PRICING_KEY, data.value)
-      return { ...PRICING, ...data.value }
+      return normalizePricing(data.value)
     }
   }
   } catch {

@@ -18,7 +18,6 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { euro, GROUPS, PRODUCTS } from '../data/catalog'
-import { PRICING } from '../data/configuratorSchema'
 import {
   addPartner,
   deleteDiscount,
@@ -29,16 +28,12 @@ import {
   saveDiscount,
   fetchOrders,
   fetchPartners,
-  fetchPricing,
   getMailings,
   getOrders,
   getPartners,
-  getPricing,
   getQuotes,
   hasBackend,
   isAdminAuthed,
-  resetPricing,
-  savePricing,
   sendMailing,
   sendStatusMail,
   setOrderStatus,
@@ -48,11 +43,14 @@ import {
   type Order,
   type OrderStatus,
 } from '../lib/adminStore'
+import { PricingAdmin } from './admin/PricingAdmin'
 import { ProductsAdmin } from './admin/ProductsAdmin'
 import { CalculationAdmin } from './admin/CalculationAdmin'
 import { OffersAdmin, type OfferDraft } from './admin/OffersAdmin'
 import { CustomersAdmin } from './admin/CustomersAdmin'
 import { Card, EmptyRow, field, fieldSm, fmtDate, Stat } from './admin/ui'
+import { parseCfg } from '../lib/cfg'
+import { calcPrice } from '../lib/pricing'
 
 type SectionId =
   | 'dashboard'
@@ -239,19 +237,33 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
                     </div>
                   </div>
                   <ul className="divide-y divide-white/5 rounded-lg bg-white/5 px-3">
-                    {o.items.map((item, i) => (
-                      <li key={i} className="py-2.5">
-                        <div className="flex items-baseline justify-between gap-3 text-[13px]">
-                          <span className="font-semibold">
-                            {item.qty} × {item.name}
-                          </span>
-                          <span className="font-bold tabular-nums">{euro(item.unitPrice * item.qty)}</span>
-                        </div>
-                        {item.config?.length > 0 && (
-                          <div className="mt-0.5 text-[11px] text-white/45">{item.config.join(' · ')}</div>
-                        )}
-                      </li>
-                    ))}
+                    {o.items.map((item, i) => {
+                      // maatwerk-items naprijzen: klantprijzen zijn clientside
+                      // berekend, dus een afwijking t.o.v. de huidige engine
+                      // wijst op manipulatie of gewijzigde tarieven
+                      const cfg = item.key?.startsWith('cfg:') ? parseCfg(item.key.slice(4)) : null
+                      const recomputed = cfg ? calcPrice(cfg).total : null
+                      const deviates = recomputed !== null && Math.abs(recomputed - item.unitPrice) > 1
+                      return (
+                        <li key={i} className="py-2.5">
+                          <div className="flex items-baseline justify-between gap-3 text-[13px]">
+                            <span className="font-semibold">
+                              {item.qty} × {item.name}
+                            </span>
+                            <span className="font-bold tabular-nums">{euro(item.unitPrice * item.qty)}</span>
+                          </div>
+                          {item.config?.length > 0 && (
+                            <div className="mt-0.5 text-[11px] text-white/45">{item.config.join(' · ')}</div>
+                          )}
+                          {deviates && (
+                            <div className="mt-1 rounded bg-rust/10 px-2 py-1 text-[11px] font-medium text-rust">
+                              Naprijzen: engine rekent nu {euro(recomputed!)} per stuk (betaald{' '}
+                              {euro(item.unitPrice)}) — controleer op manipulatie of tariefwijziging.
+                            </div>
+                          )}
+                        </li>
+                      )
+                    })}
                   </ul>
                   {o.discountCode && (
                     <p className="text-[12px] text-white/50">
@@ -308,67 +320,9 @@ function Collections() {
 }
 
 function ConfiguratorSettings() {
-  const [settings, setSettings] = useState(getPricing)
-  const [saved, setSaved] = useState(false)
-  useEffect(() => {
-    void fetchPricing().then(setSettings)
-  }, [])
-
-  const FIELDS: [keyof typeof settings, string, string][] = [
-    ['steelPerKg', 'Staalprijs per kg', 'incl. snijverlies en marge'],
-    ['weldPerM', 'Laswerk per meter naad', 'lassen, slijpen en afwerken'],
-    ['base', 'Startkosten per configuratie', 'orderhandling en tekenwerk'],
-    ['b2bDiscount', 'B2B-korting (fractie)', '0.15 = 15%'],
-  ]
-
-  const save = () => {
-    savePricing(settings)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 1800)
-  }
-
   return (
     <div className="space-y-4">
-      <Card
-        title="Configurator-tarieven"
-        aside={
-          <button
-            onClick={() => {
-              resetPricing()
-              setSettings({ ...PRICING })
-            }}
-            className="text-[12px] font-semibold text-white/40 transition-colors hover:text-white"
-          >
-            Herstel standaard
-          </button>
-        }
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          {FIELDS.map(([key, label, hint]) => (
-            <div key={key}>
-              <div className="mb-1.5 text-[13px] font-semibold">{label}</div>
-              <input
-                type="number"
-                step="0.01"
-                value={settings[key]}
-                onChange={(e) => setSettings((s) => ({ ...s, [key]: +e.target.value }))}
-                aria-label={label}
-                className={field}
-              />
-              <div className="mt-1 text-[11px] text-white/40">{hint}</div>
-            </div>
-          ))}
-        </div>
-        <button
-          onClick={save}
-          className={
-            'mt-5 rounded-xl px-5 py-2.5 text-[14px] font-semibold text-white transition-all ' +
-            (saved ? 'bg-ok' : 'bg-rust hover:bg-rust-deep')
-          }
-        >
-          {saved ? 'Opgeslagen — direct actief in de shop' : 'Opslaan'}
-        </button>
-      </Card>
+      <PricingAdmin />
       <DiscountCodes />
       <Card title="Producttypes & maatgrenzen">
         <p className="text-[13px] leading-relaxed text-white/55">
@@ -376,7 +330,8 @@ function ConfiguratorSettings() {
           <code className="rounded bg-white/10 px-1.5 py-0.5 text-[12px]">
             src/data/configuratorSchema.ts
           </code>
-          . De tarieven hierboven overschrijven dat schema live.
+          . Het prijsmodel hierboven rekent 1-op-1 zoals het calculatieblad en werkt direct door
+          in de klant-configurator en de interne calculatie.
         </p>
       </Card>
     </div>

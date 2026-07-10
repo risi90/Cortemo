@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { ArrowRight, Calculator } from 'lucide-react'
 import { euro } from '../../data/catalog'
 import { CONFIG_TYPES, configType, type ConfigTypeId, type DimensionKey } from '../../data/configuratorSchema'
-import { calcPrice, type ConfigState } from '../../lib/pricing'
+import { calcPrice, validateConfig, type ConfigState } from '../../lib/pricing'
 import { getPricing, type OfferLine } from '../../lib/adminStore'
 import { Card, fieldSm } from './ui'
 
@@ -23,7 +23,7 @@ export function CalculationAdmin({ onOffer }: { onOffer: (line: OfferLine) => vo
   const [thickness, setThickness] = useState(type.defaultThickness)
   const [options, setOptions] = useState<Record<string, boolean>>({})
   const [qty, setQty] = useState(1)
-  const [discount, setDiscount] = useState(Math.round(getPricing().b2bDiscount * 100))
+  const [discount, setDiscount] = useState(Math.round(getPricing().commercieel.b2bBasis * 100))
 
   const pickType = (id: ConfigTypeId) => {
     setTypeId(id)
@@ -42,6 +42,7 @@ export function CalculationAdmin({ onOffer }: { onOffer: (line: OfferLine) => vo
     [typeId, dims.l, dims.b, dims.h, thickness, JSON.stringify(options)],
   )
   const partnerPrice = price.total * (1 - discount / 100)
+  const validation = validateConfig(state)
 
   const descr =
     type.label +
@@ -132,29 +133,61 @@ export function CalculationAdmin({ onOffer }: { onOffer: (line: OfferLine) => vo
             </div>
           </div>
 
-          <div className="space-y-2 rounded-xl bg-white/5 p-4 text-[13px]">
+          <div className="space-y-1.5 rounded-xl bg-white/5 p-4 text-[13px]">
+            {[...validation.errors, ...validation.warnings].map((msg) => (
+              <p key={msg} className={'rounded-lg px-3 py-2 text-[12px] leading-relaxed ' + (validation.errors.includes(msg) ? 'border border-rust/40 bg-rust/10 font-medium text-rust' : 'bg-white/5 text-white/70')}>
+                {msg}
+              </p>
+            ))}
             <div className="mb-1 flex items-center gap-2 font-bold">
-              <Calculator size={14} strokeWidth={2} className="text-rust" /> Kostprijsopbouw
+              <Calculator size={14} strokeWidth={2} className="text-rust" /> Voorcalculatie
             </div>
             <div className="flex justify-between text-white/60">
-              <span>Uitgeslagen plaat</span>
-              <span className="tabular-nums">{price.areaM2.toFixed(2)} m²</span>
-            </div>
-            <div className="flex justify-between text-white/60">
-              <span>Gewicht</span>
-              <span className="tabular-nums">{price.weightKg} kg</span>
-            </div>
-            <div className="flex justify-between text-white/60">
-              <span>Materiaal</span>
+              <span>
+                Materiaal — {price.areaM2.toFixed(2)} m² verrekend, {price.weightKg} kg
+              </span>
               <span className="tabular-nums">{euro(price.material)}</span>
             </div>
             <div className="flex justify-between text-white/60">
-              <span>Lassen &amp; afwerken ({price.weldM.toFixed(1)} m naad)</span>
-              <span className="tabular-nums">{euro(price.labor)}</span>
+              <span>
+                Lasersnijden — {price.cutM.toFixed(1)} m, {price.piercings} insteken
+              </span>
+              <span className="tabular-nums">{euro(price.cutting)}</span>
             </div>
             <div className="flex justify-between text-white/60">
-              <span>Opties + startkosten</span>
-              <span className="tabular-nums">{euro(price.optionsTotal + price.base)}</span>
+              <span>Zetwerk — {price.bends} zettingen</span>
+              <span className="tabular-nums">{euro(price.bending)}</span>
+            </div>
+            <div className="flex justify-between text-white/60">
+              <span>
+                Lassen &amp; koppelen — {price.weldM.toFixed(1)} m zichtnaad
+                {price.segments > 1 ? `, ${price.segments} segmenten` : ''}
+              </span>
+              <span className="tabular-nums">{euro(price.welding)}</span>
+            </div>
+            <div className="flex justify-between text-white/60">
+              <span>Opties</span>
+              <span className="tabular-nums">{euro(price.optionsTotal)}</span>
+            </div>
+            <div className="flex justify-between text-white/60">
+              <span>Order &amp; programmeren</span>
+              <span className="tabular-nums">{euro(price.orderCosts)}</span>
+            </div>
+            <div className="flex justify-between border-t border-white/10 pt-1.5 font-semibold text-white/80">
+              <span>Productiekost</span>
+              <span className="tabular-nums">{euro(price.productionCost)}</span>
+            </div>
+            <div className="flex justify-between text-white/60">
+              <span>Marge</span>
+              <span className="tabular-nums">{euro(price.margin)}</span>
+            </div>
+            <div className="flex justify-between text-white/60">
+              <span>Verpakking &amp; transport NL (klasse {price.shippingClass})</span>
+              <span className="tabular-nums">{euro(price.packaging + price.transport)}</span>
+            </div>
+            <div className="flex justify-between font-semibold text-white/80">
+              <span>Verkoopprijs excl. btw</span>
+              <span className="tabular-nums">{euro(price.exVat)}</span>
             </div>
             <div className="flex justify-between border-t border-white/10 pt-2 text-[15px] font-extrabold">
               <span>Verkoopprijs incl. btw</span>

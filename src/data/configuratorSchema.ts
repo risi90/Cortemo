@@ -39,18 +39,90 @@ export type ConfigType = {
   options: ConfigOption[]
 }
 
-/** Tarieven — centraal instelbaar. Alle prijzen incl. btw. */
+/**
+ * Prijsmodel — 1-op-1 met het blad "Parameters prijsmodel" uit het
+ * calculatiedocument (Google Sheets). Alle bedragen zijn inkoop/kostprijs
+ * excl. btw; de marge en btw uit blok "commercieel" maken er verkoopprijzen
+ * van. De admin (Configurator & prijzen) overschrijft dit model live.
+ */
 export const PRICING = {
-  /** Kg-prijs cortenstaal incl. snijverlies en marge. */
-  steelPerKg: 4.1,
-  /** Dichtheid staal, kg/m³. */
-  density: 7850,
-  /** Laswerk en afwerking per strekkende meter naad. */
-  weldPerM: 14,
-  /** Vaste start-/handelingskosten per configuratie. */
-  base: 39,
-  /** B2B-partnerkorting (fractie), toegepast wanneer de klant is ingelogd. */
-  b2bDiscount: 0.15,
+  /** A. Staal (Corten A / S355J0WP) */
+  staal: {
+    /** Inkoopprijs plaatmateriaal per dikte, €/kg. */
+    prijsPerKg: { 2: 1.85, 3: 1.75, 4: 1.7, 5: 1.65 } as Record<number, number>,
+    /** Uitval/nesting-toeslag (restmateriaal dat wél betaald wordt). */
+    uitvalPct: 0.12,
+    /** Dichtheid staal, kg/m³ — natuurkundige constante. */
+    dichtheid: 7850,
+    /** Maximale plaatmaat leverancier, mm. */
+    maxPlaatL: 3000,
+    maxPlaatB: 1500,
+  },
+  /** B. Lasersnijden */
+  snijden: {
+    /** Tarief per meter snijlengte, per dikte. */
+    tariefPerM: { 2: 1.4, 3: 1.8, 4: 2.2, 5: 2.7 } as Record<number, number>,
+    /** Insteekprijs (piercing) per start van een snede. */
+    insteek: 0.35,
+  },
+  /** C. Zetwerk (kantbank) */
+  zetten: {
+    perZetting: 6.5,
+    toeslagLang: 4,
+    /** Zetting langer dan deze drempel (mm) krijgt de toeslag. */
+    drempelLang: 3000,
+    /** Harde bovengrens kantbank, mm. */
+    maxZetlengte: 4000,
+    /** Standaard flensbreedte gezette rand, mm. */
+    flensBreedte: 40,
+  },
+  /** D. Lassen, walsen & koppelen */
+  lassen: {
+    /** Lassen + strak slijpen zichtnaad, €/m. */
+    zichtnaadPerM: 28,
+    walsenPerM: 12,
+    randRondPerM: 9,
+    /** Koppelset segmentverbinding, €/stuk. */
+    koppelset: 17.5,
+  },
+  /** E. Opties & up-sells */
+  optieTarieven: {
+    afwateringsgat: 0.9,
+    /** Versneld roestproces, €/m² plaatoppervlak (beide zijden). */
+    roestPerM2: 14,
+    /** Anti-vlek/anti-uitspoeling coating, €/m². */
+    coatingPerM2: 19,
+    wielenset: 65,
+    grondpen: 2.4,
+    pennenPerStuk: 2,
+    /** Max. stuklengte borderrand, mm. */
+    maxStukBorder: 2300,
+    /** Overlap per borderrand-koppeling, mm. */
+    overlapBorder: 60,
+  },
+  /** F. Order, verpakking & transport */
+  order: {
+    startkosten: 15,
+    programmeren: 12.5,
+    dxfToeslag: 7.5,
+    nestingfactorDxf: 1.15,
+  },
+  logistiek: {
+    verpakking: { S: 6, M: 14, L: 32, XL: 55 },
+    /** Bovengrens per gewichtsklasse, kg (daarboven = XL). */
+    gewichtsgrens: { S: 30, M: 100, L: 250 },
+    transportNL: { S: 8.5, M: 14.5, L: 39, XL: 89 },
+    transportBE: { S: 10.5, M: 17.5, L: 49, XL: 109 },
+  },
+  /** G. Commercieel */
+  commercieel: {
+    /** Brutomarge bovenop de volledige productiekost (B2C). */
+    margePct: 0.45,
+    b2bBasis: 0.1,
+    b2bZilver: 0.15,
+    b2bGoud: 0.2,
+    btwPct: 0.21,
+  },
 }
 
 export const CONFIG_TYPES: ConfigType[] = [
