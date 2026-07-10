@@ -1,14 +1,25 @@
 import { Printer, X } from 'lucide-react'
 import { euro } from '../data/catalog'
 import { VAT_RATE } from '../lib/cart'
-import type { Order } from '../lib/adminStore'
+import type { Invoice, Order } from '../lib/adminStore'
 
 /**
- * Factuurweergave, afgeleid van een order (factuurnummer = F-<ordernr>).
- * Bewust een licht document op wit — ook in het donkere thema — zodat de
- * printversie (window.print + print-CSS in index.css) er identiek uitziet.
+ * Factuurweergave. Met een vastgelegde factuur (invoice) toont hij het
+ * officiële doorlopende nummer en de vastgelegde ordergegevens; zonder is
+ * het een proforma op basis van de actuele order. Bewust een licht document
+ * op wit — ook in het donkere thema — zodat de printversie (window.print +
+ * print-CSS in index.css) er identiek uitziet.
  */
-export function InvoiceView({ order, onClose }: { order: Order; onClose: () => void }) {
+export function InvoiceView({
+  order: liveOrder,
+  invoice,
+  onClose,
+}: {
+  order: Order
+  invoice?: Invoice | null
+  onClose: () => void
+}) {
+  const order = invoice?.order ?? liveOrder
   const exVat = order.total / (1 + VAT_RATE)
   const vat = order.total - exVat
 
@@ -58,15 +69,21 @@ export function InvoiceView({ order, onClose }: { order: Order; onClose: () => v
             </div>
           </div>
           <div className="text-right text-[12px] text-[#6B7280]">
+            {!invoice && (
+              <div className="mb-1 inline-block rounded bg-[#FEF3C7] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[.1em] text-[#92400E]">
+                Proforma
+              </div>
+            )}
             <div>
-              <span className="font-semibold text-[#1F2937]">Factuurnummer:</span> F-{order.id}
+              <span className="font-semibold text-[#1F2937]">Factuurnummer:</span>{' '}
+              {invoice ? invoice.id : 'P-' + order.id}
             </div>
             <div>
               <span className="font-semibold text-[#1F2937]">Ordernummer:</span> {order.id}
             </div>
             <div>
               <span className="font-semibold text-[#1F2937]">Datum:</span>{' '}
-              {new Date(order.date).toLocaleDateString('nl-NL', {
+              {new Date(invoice?.date ?? order.date).toLocaleDateString('nl-NL', {
                 day: 'numeric',
                 month: 'long',
                 year: 'numeric',

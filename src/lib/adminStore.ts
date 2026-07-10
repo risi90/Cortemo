@@ -108,11 +108,76 @@ export type Order = {
   discountAmount: number
   projectId: string
   status: OrderStatus
+  /** true = prijzen zijn server-side herrekend door de place-order functie. */
+  verified?: boolean
+  paymentStatus?: string
 }
 
 const ORDERS_KEY = 'cortemo-orders'
 
 export const getOrders = (): Order[] => read<Order[]>(ORDERS_KEY, [])
+
+/**
+ * Plaatst een klantorder via de place-order edge function: de server
+ * herrekent alle prijzen, valideert de kortingscode en slaat pas dan op.
+ * Retourneert een foutmelding als de server de bestelling weigert
+ * (prijsafwijking, onmogelijke maat, ongeldige code). Alleen als de
+ * functie onbereikbaar is (netwerk/demo) valt hij terug op lokale opslag.
+ */
+export async function placeOrder(
+  input: Omit<Order, 'id' | 'date' | 'status'>,
+): Promise<{ ok: boolean; orderId?: string; error?: string }> {
+  const localFallback = () => {
+    const id = 'CM-' + String(Date.now()).slice(-6)
+    saveOrder({ ...input, id, date: new Date().toISOString(), status: 'nieuw' })
+    return { ok: true, orderId: id }
+  }
+  if (!supabase) return localFallback()
+  try {
+    const { data, error } = await supabase.functions.invoke('place-order', {
+      body: {
+        name: input.name,
+        email: input.email,
+        address: input.address,
+        city: input.city,
+        items: input.items,
+        discountCode: input.discountCode,
+        projectId: input.projectId || '',
+      },
+    })
+    if (data?.ok && data.orderId) {
+      // lokale cache bijwerken zodat de order direct zichtbaar is in admin
+      write(ORDERS_KEY, [
+        {
+          ...input,
+          id: data.orderId as string,
+          date: new Date().toISOString(),
+          status: 'nieuw' as OrderStatus,
+          verified: true,
+          paymentStatus: 'open',
+        },
+        ...getOrders(),
+      ])
+      return { ok: true, orderId: data.orderId as string }
+    }
+    // heeft de server geantwoord met een weigering, geef de reden terug;
+    // kwam er geen antwoord (FunctionsFetchError e.d.), dan lokaal borgen
+    if (error && error.name === 'FunctionsHttpError') {
+      let message = error.message
+      try {
+        message = (await (error as unknown as { context: Response }).context.json()).error
+      } catch {
+        /* houd de generieke melding */
+      }
+      return { ok: false, error: String(message) }
+    }
+    if (data?.error) return { ok: false, error: String(data.error) }
+    return localFallback()
+  } catch {
+    // netwerkfout: bestelling niet kwijtraken
+    return localFallback()
+  }
+}
 
 export function saveOrder(order: Order): void {
   write(ORDERS_KEY, [order, ...getOrders()])
@@ -155,6 +220,8 @@ export async function fetchOrders(): Promise<Order[]> {
         discountAmount: Number(r.discount_amount ?? 0),
         projectId: r.project_id ?? '',
         status: r.status as OrderStatus,
+        verified: r.verified ?? false,
+        paymentStatus: r.payment_status ?? '',
       }))
       write(ORDERS_KEY, orders)
       return orders
@@ -675,6 +742,105 @@ export function setOfferStatus(id: string, status: OfferStatus): Offer[] {
   write(OFFERS_KEY, next)
   fire(supabase?.from('cortemo_offers').update({ status }).eq('id', id))
   return next
+}
+
+/* ---------- facturen (onveranderlijk, doorlopend genummerd) ---------- */
+
+export type Invoice = {
+  /** Factuurnummer, bijv. 2026-0001. */
+  id: string
+  orderId: string
+  date: string
+  /** Vastgelegde ordergegevens op factuurmoment. */
+  order: Order
+}
+
+const INVOICES_KEY = 'cortemo-invoices'
+
+export const getInvoices = (): Invoice[] => read<Invoice[]>(INVOICES_KEY, [])
+
+function rowToInvoice(r: {
+  id: string
+  order_id: string
+  created_at: string
+  snapshot: Record<string, unknown>
+}): Invoice {
+  const s = r.snapshot
+  return {
+    id: r.id,
+    orderId: r.order_id,
+    date: r.created_at,
+    order: {
+      id: String(s.id ?? r.order_id),
+      date: String(s.created_at ?? r.created_at),
+      name: String(s.name ?? ''),
+      email: String(s.email ?? ''),
+      city: String(s.city ?? ''),
+      address: String(s.address ?? ''),
+      items: (s.items ?? []) as Order['items'],
+      total: Number(s.total ?? 0),
+      discountCode: String(s.discount_code ?? ''),
+      discountAmount: Number(s.discount_amount ?? 0),
+      projectId: String(s.project_id ?? ''),
+      status: (s.status ?? 'nieuw') as OrderStatus,
+    },
+  }
+}
+
+/** RLS bepaalt de scope: admins zien alles, partners alleen eigen facturen. */
+export async function fetchInvoices(): Promise<Invoice[]> {
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('cortemo_invoices')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (!error && data) {
+        const invoices = data.map(rowToInvoice)
+        write(INVOICES_KEY, invoices)
+        return invoices
+      }
+    }
+  } catch {
+    /* netwerkfout: val terug op de lokale cache */
+  }
+  return getInvoices()
+}
+
+/**
+ * Legt een order vast als factuur met het volgende doorlopende nummer.
+ * Idempotent: bestaat er al een factuur voor de order, dan komt die terug.
+ * Zonder backend (demo) wordt lokaal genummerd op volgorde van aanmaak.
+ */
+export async function createInvoice(order: Order): Promise<Invoice | null> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.rpc('cortemo_create_invoice', { p_order_id: order.id })
+      if (!error && data) {
+        const invoice = rowToInvoice(data as Parameters<typeof rowToInvoice>[0])
+        write(INVOICES_KEY, [invoice, ...getInvoices().filter((i) => i.orderId !== invoice.orderId)])
+        return invoice
+      }
+      // expliciete databaseweigering (bijv. geen beheerrechten): niet lokaal
+      // doen alsof er gefactureerd is; bij netwerkfouten wél lokaal verder
+      if (error?.code) return null
+    } catch {
+      /* netwerkfout: val terug op lokale nummering */
+    }
+  }
+  // demo-modus: lokaal doornummeren
+  const existing = getInvoices().find((i) => i.orderId === order.id)
+  if (existing) return existing
+  const year = new Date().getFullYear()
+  const seq = getInvoices().filter((i) => i.id.startsWith(String(year))).length + 1
+  const invoice: Invoice = {
+    id: `${year}-${String(seq).padStart(4, '0')}`,
+    orderId: order.id,
+    date: new Date().toISOString(),
+    order,
+  }
+  write(INVOICES_KEY, [invoice, ...getInvoices()])
+  return invoice
 }
 
 /* ---------- partner-datatoegang (RLS filtert op de ingelogde partner) ---------- */

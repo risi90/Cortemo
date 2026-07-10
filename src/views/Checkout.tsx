@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ArrowRight, Check, Lock, ShoppingCart, Truck } from 'lucide-react'
 import { euro } from '../data/catalog'
 import { cartTotal, cartWeight, VAT_RATE, type CartItem } from '../lib/cart'
-import { saveOrder, validateDiscount } from '../lib/adminStore'
+import { placeOrder, validateDiscount } from '../lib/adminStore'
 
 const PAYMENT_METHODS = ['iDEAL', 'Bancontact', 'Creditcard', 'Bankoverschrijving']
 
@@ -20,6 +20,8 @@ export function Checkout({
 }) {
   const [placed, setPlaced] = useState<string | null>(null)
   const [tried, setTried] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [serverError, setServerError] = useState('')
   const [payment, setPayment] = useState(PAYMENT_METHODS[0])
   const [form, setForm] = useState({ name: '', email: '', street: '', zip: '', city: '' })
   const set = (key: keyof typeof form) => (value: string) =>
@@ -49,13 +51,14 @@ export function Checkout({
     form.zip.trim() &&
     form.city.trim()
 
-  const place = () => {
+  const place = async () => {
     setTried(true)
-    if (!valid) return
-    const id = 'CM-' + String(Date.now()).slice(-6)
-    saveOrder({
-      id,
-      date: new Date().toISOString(),
+    if (!valid || busy) return
+    setBusy(true)
+    setServerError('')
+    // de server herrekent alle prijzen en weigert gemanipuleerde of
+    // verouderde bedragen — zie supabase/functions/place-order
+    const result = await placeOrder({
       name: form.name,
       email: form.email,
       city: form.city,
@@ -65,9 +68,13 @@ export function Checkout({
       discountCode: discount?.code ?? '',
       discountAmount,
       projectId: '',
-      status: 'nieuw',
     })
-    setPlaced(id)
+    setBusy(false)
+    if (!result.ok) {
+      setServerError(result.error || 'Bestellen lukte niet, probeer het opnieuw.')
+      return
+    }
+    setPlaced(result.orderId!)
     onClear()
   }
 
@@ -288,11 +295,17 @@ export function Checkout({
                 Vul je naam, een geldig e-mailadres en het volledige bezorgadres in.
               </p>
             )}
+            {serverError && (
+              <p className="rounded-lg bg-rust/10 px-3 py-2 text-[13px] font-medium text-rust" role="alert">
+                {serverError}
+              </p>
+            )}
             <button
-              onClick={place}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-rust py-3.5 text-[15px] font-semibold text-white transition-all hover:bg-rust-deep active:scale-[.99]"
+              onClick={() => void place()}
+              disabled={busy}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-rust py-3.5 text-[15px] font-semibold text-white transition-all hover:bg-rust-deep active:scale-[.99] disabled:opacity-60"
             >
-              <Lock size={15} strokeWidth={2} /> Bestelling plaatsen
+              <Lock size={15} strokeWidth={2} /> {busy ? 'Bezig met plaatsen…' : 'Bestelling plaatsen'}
             </button>
             <p className="text-center text-[12px] text-white/40">
               Betaling via {payment} &middot; beveiligde verbinding

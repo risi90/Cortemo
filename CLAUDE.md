@@ -39,7 +39,18 @@ clientcode; RLS beschermt alles). De adminStore is dual-mode: Supabase-
 first met localStorage-fallback. Schema/RLS/seed staat in
 `supabase/migrations/0001_cortemo_init.sql`; de mailingfunctie (Resend) in
 `supabase/functions/send-mailing/` — die vereist de secrets RESEND_API_KEY
-en MAIL_FROM in het Supabase-dashboard. Beheerders zijn auth-users die in
+en MAIL_FROM in het Supabase-dashboard. Klantorders lopen verplicht via de
+edge function `place-order` (directe anonieme inserts op cortemo_orders
+zijn dicht sinds migratie 0005): die herrekent alle prijzen server-side,
+valideert de kortingscode en stuurt de orderbevestiging; de betaal-stub
+(`createPayment` in `supabase/functions/place-order/index.ts`) is waar
+Mollie/Stripe later inklikt. LET OP: `supabase/functions/place-order/
+pricing.ts` is een Deno-kopie van de prijsengine — wijzig je formules of
+maatgrenzen in `src/lib/pricing.ts`/`configuratorSchema.ts`, werk die kopie
+dan ook bij en herdeploy (tarieven komen live uit cortemo_settings en
+hoeven dat niet). Facturen zijn onveranderlijk en doorlopend genummerd
+(2026-0001) via de SQL-functie `cortemo_create_invoice` (rpc, alleen
+admins). Beheerders zijn auth-users die in
 `cortemo_admins` staan; B2B-partners zijn auth-users gekoppeld via
 `cortemo_partners.user_id`. Thema: light is standaard, donker via de
 switcher (desktop in de menubalk, mobiel in het uitklapmenu).

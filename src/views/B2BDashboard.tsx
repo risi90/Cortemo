@@ -17,10 +17,12 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { euro } from '../data/catalog'
 import {
+  fetchInvoices,
   fetchPartnerOffers,
   fetchPartnerOrders,
   fetchPartnerProjects,
   getActivePartner,
+  getInvoices,
   getOffers,
   getOrders,
   getProjects,
@@ -30,6 +32,7 @@ import {
   setOrderProject,
   signInPartner,
   signOutPartner,
+  type Invoice,
   type Offer,
   type Order,
   type Project,
@@ -131,12 +134,15 @@ function PartnerLogin({ onDone }: { onDone: () => void }) {
 function OrderDetail({
   order,
   projects,
+  invoiceId,
   onBack,
   onInvoice,
   onProject,
 }: {
   order: Order
   projects: Project[]
+  /** Officieel factuurnummer als de order al gefactureerd is. */
+  invoiceId?: string
   onBack: () => void
   onInvoice: () => void
   onProject: (projectId: string) => void
@@ -191,7 +197,8 @@ function OrderDetail({
           onClick={onInvoice}
           className="flex items-center gap-1.5 rounded-lg bg-rust px-3 py-2 text-[12px] font-semibold text-white hover:bg-rust-deep"
         >
-          <Printer size={12} strokeWidth={2} /> Factuur F-{order.id}
+          <Printer size={12} strokeWidth={2} />{' '}
+          {invoiceId ? 'Factuur ' + invoiceId : 'Factuur (proforma)'}
         </button>
         <label className="ml-auto flex items-center gap-2 text-[12px] text-white/55">
           Project
@@ -233,6 +240,7 @@ export function B2BDashboard({
   const [projectId, setProjectId] = useState<string | null>(null)
   const [orderId, setOrderId] = useState<string | null>(null)
   const [invoice, setInvoice] = useState<Order | null>(null)
+  const [invoices, setInvoices] = useState<Invoice[]>([])
   const [creating, setCreating] = useState(false)
   const [draft, setDraft] = useState({ name: '', reference: '', siteAddress: '' })
 
@@ -250,9 +258,12 @@ export function B2BDashboard({
       ),
     )
     setOffers(getOffers().filter((o) => mine(o.email)))
+    setInvoices(getInvoices().filter((i) => mine(i.order.email)))
     void fetchPartnerOrders(p).then(setOrders)
     void fetchPartnerOffers(p).then(setOffers)
     void fetchPartnerProjects(p).then(setProjects)
+    // RLS geeft partners alleen hun eigen facturen terug
+    void fetchInvoices().then(setInvoices)
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => reload(), [partner?.email])
@@ -300,7 +311,13 @@ export function B2BDashboard({
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pb-20 sm:pt-10">
-      {invoice && <InvoiceView order={invoice} onClose={() => setInvoice(null)} />}
+      {invoice && (
+        <InvoiceView
+          order={invoice}
+          invoice={invoices.find((i) => i.orderId === invoice.id) ?? null}
+          onClose={() => setInvoice(null)}
+        />
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button onClick={onShop} className="flex items-center gap-1.5 text-[13px] font-semibold text-white/50 transition-colors hover:text-white">
@@ -475,6 +492,7 @@ export function B2BDashboard({
               <OrderDetail
                 order={order}
                 projects={projects}
+                invoiceId={invoices.find((i) => i.orderId === order.id)?.id}
                 onBack={() => setOrderId(null)}
                 onInvoice={() => setInvoice(order)}
                 onProject={(pid) => {

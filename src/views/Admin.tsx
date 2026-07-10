@@ -26,9 +26,12 @@ import {
   fetchMailings,
   getDiscounts,
   saveDiscount,
+  createInvoice,
+  fetchInvoices,
   fetchOrders,
   fetchPartners,
   fetchProjects,
+  getInvoices,
   getMailings,
   getOrders,
   getProjects,
@@ -43,6 +46,7 @@ import {
   setPartnerDiscount,
   signInAdmin,
   signOutAdmin,
+  type Invoice,
   type Order,
   type OrderStatus,
   type Project,
@@ -183,12 +187,27 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
   const [openId, setOpenId] = useState<string | null>(null)
   const [mailState, setMailState] = useState<Record<string, string>>({})
   const [projects, setProjects] = useState<Project[]>([])
+  const [invoices, setInvoices] = useState<Invoice[]>([])
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
+  const [invoiceDoc, setInvoiceDoc] = useState<Invoice | null>(null)
 
   useEffect(() => {
     setProjects(getProjects())
+    setInvoices(getInvoices())
     void fetchProjects().then(setProjects)
+    void fetchInvoices().then(setInvoices)
   }, [])
+
+  const invoiceFor = (orderId: string) => invoices.find((i) => i.orderId === orderId) ?? null
+
+  // maakt (of hergebruikt) de vastgelegde factuur en opent hem
+  const openInvoice = async (o: Order) => {
+    const existing = invoiceFor(o.id)
+    const invoice = existing ?? (await createInvoice(o))
+    if (invoice && !existing) setInvoices((prev) => [invoice, ...prev])
+    setInvoiceDoc(invoice)
+    setInvoiceOrder(o)
+  }
 
   const mailStatus = async (o: Order) => {
     setMailState((s) => ({ ...s, [o.id]: 'bezig' }))
@@ -238,7 +257,7 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
 
               {openId === o.id && (
                 <div className="mt-3 space-y-3 rounded-xl bg-white/5 p-4">
-                  <div className="grid gap-3 text-[12px] text-white/60 sm:grid-cols-2">
+                  <div className="grid gap-3 text-[12px] text-white/60 sm:grid-cols-3">
                     <div>
                       <span className="block font-semibold text-white/80">Bezorgadres</span>
                       {o.address || o.city || '—'}
@@ -246,6 +265,15 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
                     <div>
                       <span className="block font-semibold text-white/80">Contact</span>
                       {o.name} · {o.email}
+                    </div>
+                    <div>
+                      <span className="block font-semibold text-white/80">Verificatie & betaling</span>
+                      {o.verified ? (
+                        <span className="text-ok">prijzen server-geverifieerd</span>
+                      ) : (
+                        <span className="text-rust">niet geverifieerd (controleer naprijzen)</span>
+                      )}
+                      {o.paymentStatus ? ' · betaling ' + o.paymentStatus : ''}
                     </div>
                   </div>
                   <ul className="divide-y divide-white/5 rounded-lg bg-white/5 px-3">
@@ -284,10 +312,11 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
                   )}
                   <div className="flex flex-wrap items-center gap-3">
                     <button
-                      onClick={() => setInvoiceOrder(o)}
+                      onClick={() => void openInvoice(o)}
                       className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-[12px] font-semibold text-white hover:border-rust"
                     >
-                      <FileText size={12} strokeWidth={2} /> Factuur F-{o.id}
+                      <FileText size={12} strokeWidth={2} />{' '}
+                      {invoiceFor(o.id) ? 'Factuur ' + invoiceFor(o.id)!.id : 'Maak factuur'}
                     </button>
                     <select
                       value={o.projectId || ''}
@@ -329,7 +358,16 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
           ))}
         </ul>
       )}
-      {invoiceOrder && <InvoiceView order={invoiceOrder} onClose={() => setInvoiceOrder(null)} />}
+      {invoiceOrder && (
+        <InvoiceView
+          order={invoiceOrder}
+          invoice={invoiceDoc}
+          onClose={() => {
+            setInvoiceOrder(null)
+            setInvoiceDoc(null)
+          }}
+        />
+      )}
     </Card>
   )
 }
