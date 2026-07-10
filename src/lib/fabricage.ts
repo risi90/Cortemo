@@ -1,4 +1,5 @@
 import { getPricing } from './adminStore'
+import { figure, type FigurePath } from '../data/figures'
 import type { ConfigState } from './pricing'
 
 /**
@@ -35,12 +36,20 @@ export type FlatPart = {
   naam: string
   aantal: number
   dikte: number
-  /** Uitslagmaten in mm (rechthoekige contour). */
+  /** Uitslagmaten in mm (bounding box; bij rond = diameter × diameter). */
   breedte: number
   hoogte: number
   gaten: Gat[]
   zetlijnen: Zetlijn[]
   notities: string[]
+  /** Ronde buitencontour (staptegel): DXF krijgt een CIRCLE i.p.v. rechthoek. */
+  rond?: boolean
+  /** Vrije buitencontour(en) in mm — het silhouet ís dan het onderdeel. */
+  contouren?: [number, number][][]
+  /** Binnen-uitsnedes in mm (motieven, figuren). */
+  uitsnedes?: [number, number][][]
+  /** Uit te snijden teksten: positie/hoogte in mm; contouren zet de WVB om. */
+  teksten?: { x: number; y: number; h: number; value: string }[]
 }
 
 export type WorkOrder = {
@@ -77,6 +86,32 @@ function uitslag(flenzen: number[], bd: number): { lengtes: number[]; posities: 
     posities.push(cursor)
   }
   return { lengtes, posities }
+}
+
+/** Actieve figuurpaden van het ontwerp (bibliotheek of eigen silhouet). */
+function decoFigPaths(state: ConfigState): FigurePath[] {
+  const d = state.deco
+  if (!d || !d.fig) return []
+  if (d.fig === 'custom') return d.custom ?? []
+  return figure(d.fig)?.paths ?? []
+}
+
+/**
+ * Figuurpaden → mm-coördinaten (y omhoog, oorsprong linksonder van de
+ * uitslag), geschaald naar hoogte hMm en gecentreerd op (cx, cy).
+ */
+function figPathsMm(paths: FigurePath[], hMm: number, cx: number, cy: number): [number, number][][] {
+  const pts = paths.flat()
+  const ys = pts.map((p) => p[1])
+  const xs = pts.map((p) => p[0])
+  const minY = Math.min(...ys)
+  const hgt = Math.max(...ys) - minY || 1
+  const midX = (Math.min(...xs) + Math.max(...xs)) / 2
+  const midY = minY + hgt / 2
+  const s = hMm / hgt
+  return paths.map((path) =>
+    path.map(([x, y]) => [r1(cx + (x - midX) * s), r1(cy + (midY - y) * s)] as [number, number]),
+  )
 }
 
 /** Onderdelen + uitslagen voor een configuratie. */
@@ -268,6 +303,102 @@ export function workOrderFor(state: ConfigState): WorkOrder {
       if (state.options.poeren) notities.push('Betonpoeren (2×) meeleveren.')
       break
     }
+
+    case 'staptegel': {
+      const D = l
+      const d = state.deco
+      const paths = decoFigPaths(state)
+      const figH = (d?.s ?? 0.5) * D
+      const uitsnedes =
+        paths.length && d
+          ? figPathsMm(
+              paths,
+              figH,
+              D / 2 + (d.x - 0.5) * (D - figH),
+              D / 2 - (d.y - 0.5) * (D - figH),
+            )
+          : []
+      parts.push({
+        id: 'staptegel',
+        naam: 'Staptegel rond' + (paths.length ? ' met motief-uitsnede' : ''),
+        aantal: 1,
+        dikte: t,
+        breedte: D,
+        hoogte: D,
+        rond: true,
+        gaten: [],
+        zetlijnen: [],
+        uitsnedes,
+        notities: ['Beloopbaar: ontbramen en randen licht breken.'],
+      })
+      break
+    }
+
+    case 'naambord': {
+      const d = state.deco
+      const paths = decoFigPaths(state)
+      const figH = (d?.s ?? 0.3) * h
+      const inset = 16
+      const teksten: FlatPart['teksten'] = []
+      if (d?.text.trim()) {
+        teksten.push({ x: r1(d.tx * l), y: r1((1 - d.ty) * h), h: r1(d.ts * h), value: d.text.trim() })
+      }
+      if (d?.nr.trim()) {
+        teksten.push({ x: r1(d.nx * l), y: r1((1 - d.ny) * h), h: r1(d.ns * h), value: d.nr.trim() })
+      }
+      parts.push({
+        id: 'naambord',
+        naam: 'Naambord',
+        aantal: 1,
+        dikte: t,
+        breedte: l,
+        hoogte: h,
+        gaten: [
+          { x: inset, y: inset, d: 6 },
+          { x: l - inset, y: inset, d: 6 },
+          { x: inset, y: h - inset, d: 6 },
+          { x: l - inset, y: h - inset, d: 6 },
+        ],
+        zetlijnen: [],
+        uitsnedes:
+          paths.length && d
+            ? figPathsMm(
+                paths,
+                figH,
+                l / 2 + (d.x - 0.5) * (l - figH),
+                h / 2 - (d.y - 0.5) * (h - figH),
+              )
+            : [],
+        teksten,
+        notities: [
+          'Teksten uitsnijden (stencil): contouren zet de werkvoorbereiding om vanuit het font; positie en hoogte in de GRAVEREN-laag zijn maatvast.',
+        ],
+      })
+      break
+    }
+
+    case 'figuur': {
+      const paths = decoFigPaths(state)
+      const contouren = figPathsMm(paths, h, h / 2, h / 2)
+      const xs = contouren.flat().map((p) => p[0])
+      parts.push({
+        id: 'figuur',
+        naam: state.deco?.fig === 'custom' ? 'Eigen silhouet (foto)' : `Silhouet ${state.deco?.fig ?? ''}`,
+        aantal: 1,
+        dikte: t,
+        breedte: r1(Math.max(...xs) - Math.min(...xs)),
+        hoogte: h,
+        contouren,
+        gaten: [],
+        zetlijnen: [],
+        notities:
+          state.deco?.fig === 'molen'
+            ? ['Meerdere contouren overlappen (romp + wieken): in de werkvoorbereiding samenvoegen tot één snijcontour.']
+            : [],
+      })
+      if (state.options.pennen) notities.push('Grondpennen (2 stekers) meeleveren en aan de achterzijde hechten.')
+      break
+    }
   }
 
   if (state.options.roest) notities.push('Nabehandeling: versneld roestproces (beide zijden).')
@@ -297,6 +428,7 @@ function dxfLayerTable(): string {
     ['GATEN', 7],
     ['ZETLIJN_BOVEN', 5],
     ['ZETLIJN_ONDER', 1],
+    ['GRAVEREN', 3],
     ['INFO', 8],
   ] as const
   const entries = layers
@@ -370,21 +502,34 @@ function dxfText(x: number, y: number, height: number, value: string, layer: str
 
 /** Volledig DXF R12-bestand (mm) voor één onderdeel. */
 export function dxfFor(part: FlatPart, orderRef: string): string {
+  // buitencontour: vrije vorm (silhouet), rond (staptegel) of rechthoek
+  const outer = part.contouren?.length
+    ? part.contouren.map((pts) => dxfPolyline(pts, 'SNIJDEN'))
+    : part.rond
+      ? [dxfCircle(part.breedte / 2, part.hoogte / 2, part.breedte, 'SNIJDEN')]
+      : [
+          dxfPolyline(
+            [
+              [0, 0],
+              [part.breedte, 0],
+              [part.breedte, part.hoogte],
+              [0, part.hoogte],
+            ],
+            'SNIJDEN',
+          ),
+        ]
   const entities: string[] = [
-    dxfPolyline(
-      [
-        [0, 0],
-        [part.breedte, 0],
-        [part.breedte, part.hoogte],
-        [0, part.hoogte],
-      ],
-      'SNIJDEN',
-    ),
+    ...outer,
+    ...(part.uitsnedes ?? []).map((pts) => dxfPolyline(pts, 'SNIJDEN')),
     ...part.gaten.map((g) => dxfCircle(g.x, g.y, g.d, 'GATEN')),
     ...part.zetlijnen.map((z) =>
       z.as === 'x'
         ? dxfLine(z.pos, 0, z.pos, part.hoogte, z.richting === 'boven' ? 'ZETLIJN_BOVEN' : 'ZETLIJN_ONDER')
         : dxfLine(0, z.pos, part.breedte, z.pos, z.richting === 'boven' ? 'ZETLIJN_BOVEN' : 'ZETLIJN_ONDER'),
+    ),
+    // tekstuitsnedes: maatvaste positie/hoogte, contouren via de WVB (font)
+    ...(part.teksten ?? []).map((tk) =>
+      dxfText(tk.x - (tk.value.length * tk.h * 0.78) / 2, tk.y - tk.h / 2, tk.h, tk.value, 'GRAVEREN'),
     ),
     dxfText(10, part.hoogte + 15, 12, `${orderRef} ${part.id} ${part.dikte}mm ${part.aantal}x`, 'INFO'),
   ]

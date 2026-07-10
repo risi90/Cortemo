@@ -4,15 +4,19 @@ import {
   Box,
   Check,
   ChevronDown,
+  ImageUp,
   Link2,
   Maximize2,
   RefreshCw,
   Ruler,
+  Shapes,
   ShoppingCart,
 } from 'lucide-react'
 import { Scene } from './Scene'
+import { PhotoSilhouette } from './PhotoSilhouette'
 import { useConfiguratorStore, type CameraViewName } from '../../store/configuratorStore'
 import { CONFIG_TYPES, configType, type DimensionKey } from '../../data/configuratorSchema'
+import { FIGURES, figure, figureSvgPath } from '../../data/figures'
 import { calcPrice, validateConfig, type ConfigState } from '../../lib/pricing'
 import { parseCfg, serializeCfg } from '../../lib/cfg'
 import { euro } from '../../data/catalog'
@@ -108,12 +112,14 @@ export default function Configurator3D({
     dims,
     thickness,
     options,
+    deco,
     rust,
     showDims,
     autoRotate,
     setType,
     setThickness,
     toggleOption,
+    setDeco,
     setRust,
     toggleDims,
     toggleAutoRotate,
@@ -121,20 +127,22 @@ export default function Configurator3D({
     hydrate,
   } = store
   const type = configType(typeId)
-  const state: ConfigState = { typeId, dims, thickness, options }
+  const state: ConfigState = { typeId, dims, thickness, options, deco }
+  const decoKey = JSON.stringify(deco ?? null)
   const price = useMemo(
     () => calcPrice(state),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [typeId, dims.l, dims.b, dims.h, thickness, JSON.stringify(options)],
+    [typeId, dims.l, dims.b, dims.h, thickness, JSON.stringify(options), decoKey],
   )
   const [added, setAdded] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showBreakdown, setShowBreakdown] = useState(false)
+  const [showPhoto, setShowPhoto] = useState(false)
   const partner = getActivePartner()
   const validation = useMemo(
     () => validateConfig(state),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [typeId, dims.l, dims.b, dims.h, thickness, JSON.stringify(options)],
+    [typeId, dims.l, dims.b, dims.h, thickness, JSON.stringify(options), decoKey],
   )
 
   // configuratie uit de URL hervatten (gedeelde links)
@@ -154,7 +162,7 @@ export default function Configurator3D({
     }, 350)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeId, dims.l, dims.b, dims.h, thickness, options])
+  }, [typeId, dims.l, dims.b, dims.h, thickness, options, decoKey])
 
   const share = async () => {
     try {
@@ -171,6 +179,14 @@ export default function Configurator3D({
     const dimLine = type.dimensions
       .map((d) => `${d.label.charAt(0)} ${dims[d.key]}`)
       .join(' × ')
+    const decoLines: string[] = []
+    if (deco?.fig) {
+      decoLines.push(
+        deco.fig === 'custom' ? 'Eigen silhouet (foto)' : 'Figuur: ' + (figure(deco.fig)?.label ?? deco.fig),
+      )
+    }
+    if (deco?.text.trim()) decoLines.push('Tekst: “' + deco.text.trim() + '”')
+    if (deco?.nr.trim()) decoLines.push('Nummer: ' + deco.nr.trim())
     onAdd({
       key: 'cfg:' + serializeCfg(state),
       productId: 'maatwerk-' + typeId,
@@ -179,6 +195,7 @@ export default function Configurator3D({
       config: [
         dimLine + ' mm',
         thickness + ' mm cortenstaal',
+        ...decoLines,
         ...type.options.filter((o) => options[o.id]).map((o) => o.label),
       ],
       unitPrice: price.total,
@@ -307,6 +324,141 @@ export default function Configurator3D({
               ))}
             </div>
           </div>
+
+          {/* ontwerp-editor: figuur, tekst en nummer (versleepbaar in 3D) */}
+          {type.deco && deco && (
+            <div>
+              <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold">
+                <Shapes size={14} strokeWidth={2} className="text-rust" /> Ontwerp
+              </div>
+
+              {type.deco === 'bord' && (
+                <div className="mb-3 grid grid-cols-[1fr_88px] gap-2">
+                  <input
+                    type="text"
+                    value={deco.text}
+                    maxLength={24}
+                    onChange={(e) => setDeco({ text: e.target.value })}
+                    placeholder="Naam of tekst"
+                    aria-label="Tekst op het bord"
+                    className="rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-[16px] font-semibold text-white outline-none placeholder:text-white/30 focus:border-rust sm:text-[13px]"
+                  />
+                  <input
+                    type="text"
+                    value={deco.nr}
+                    maxLength={6}
+                    onChange={(e) => setDeco({ nr: e.target.value })}
+                    placeholder="Nr."
+                    aria-label="Huisnummer"
+                    className="rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-center text-[16px] font-semibold tabular-nums text-white outline-none placeholder:text-white/30 focus:border-rust sm:text-[13px]"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-7">
+                {type.deco !== 'vorm' && (
+                  <button
+                    onClick={() => setDeco({ fig: '' })}
+                    title="Geen figuur"
+                    className={
+                      'flex aspect-square items-center justify-center rounded-lg border text-[10px] font-semibold transition-all ' +
+                      (deco.fig === ''
+                        ? 'border-rust bg-white/10 text-white'
+                        : 'border-transparent bg-white/5 text-white/45 hover:text-white')
+                    }
+                  >
+                    Geen
+                  </button>
+                )}
+                {FIGURES.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setDeco({ fig: f.id })}
+                    title={f.label}
+                    aria-label={'Figuur ' + f.label}
+                    className={
+                      'flex aspect-square items-center justify-center rounded-lg border p-1 transition-all ' +
+                      (deco.fig === f.id
+                        ? 'border-rust bg-white/10'
+                        : 'border-transparent bg-white/5 hover:bg-white/10')
+                    }
+                  >
+                    <svg viewBox="0 0 100 100" className="h-full w-full">
+                      <path
+                        d={figureSvgPath(f.paths)}
+                        fill={deco.fig === f.id ? '#e06a35' : 'rgba(255,255,255,.6)'}
+                      />
+                    </svg>
+                  </button>
+                ))}
+                <button
+                  onClick={() => setShowPhoto(true)}
+                  title="Eigen silhouet uit een foto"
+                  className={
+                    'flex aspect-square flex-col items-center justify-center gap-0.5 rounded-lg border text-[9px] font-semibold transition-all ' +
+                    (deco.fig === 'custom'
+                      ? 'border-rust bg-white/10 text-rust'
+                      : 'border-dashed border-white/25 text-white/55 hover:border-rust hover:text-white')
+                  }
+                >
+                  <ImageUp size={14} strokeWidth={2} />
+                  Foto
+                </button>
+              </div>
+
+              {(deco.fig || type.deco === 'bord') && (
+                <div className="mt-3 space-y-2">
+                  {deco.fig && (
+                    <label className="block text-[12px] font-medium text-white/60">
+                      Figuurgrootte
+                      <input
+                        type="range"
+                        min={type.deco === 'vorm' ? 100 : 10}
+                        max={type.deco === 'vorm' ? 100 : 90}
+                        value={Math.round(deco.s * 100)}
+                        disabled={type.deco === 'vorm'}
+                        onChange={(e) => setDeco({ s: +e.target.value / 100 })}
+                        className="mt-1 h-1.5 w-full cursor-pointer accent-[#D95A2B] disabled:opacity-40"
+                      />
+                    </label>
+                  )}
+                  {type.deco === 'bord' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block text-[12px] font-medium text-white/60">
+                        Tekstgrootte
+                        <input
+                          type="range"
+                          min={10}
+                          max={70}
+                          value={Math.round(deco.ts * 100)}
+                          onChange={(e) => setDeco({ ts: +e.target.value / 100 })}
+                          className="mt-1 h-1.5 w-full cursor-pointer accent-[#D95A2B]"
+                        />
+                      </label>
+                      <label className="block text-[12px] font-medium text-white/60">
+                        Nummergrootte
+                        <input
+                          type="range"
+                          min={10}
+                          max={80}
+                          value={Math.round(deco.ns * 100)}
+                          onChange={(e) => setDeco({ ns: +e.target.value / 100 })}
+                          className="mt-1 h-1.5 w-full cursor-pointer accent-[#D95A2B]"
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {type.deco !== 'vorm' && (
+                <p className="mt-2 text-[11px] leading-relaxed text-white/40">
+                  Sleep {type.deco === 'bord' ? 'tekst, nummer en figuur' : 'het figuur'} direct in
+                  het 3D-beeld naar de juiste plek.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* opties */}
           <div>
@@ -451,6 +603,16 @@ export default function Configurator3D({
           </p>
         </div>
       </div>
+
+      {showPhoto && (
+        <PhotoSilhouette
+          onUse={(path) => {
+            setDeco({ fig: 'custom', custom: [path] })
+            setShowPhoto(false)
+          }}
+          onClose={() => setShowPhoto(false)}
+        />
+      )}
 
       {/* sticky prijsbalk op mobiel: prijs + CTA altijd binnen duimbereik */}
       <div className="liquid-glass fixed inset-x-3 bottom-3 z-30 flex items-center justify-between gap-3 rounded-2xl p-3 pl-5 text-white lg:hidden">

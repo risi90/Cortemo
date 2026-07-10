@@ -9,13 +9,85 @@
  * hoeven hier dus NIET bijgewerkt te worden.
  */
 
-export type ConfigTypeId = 'plantenbak' | 'keerwand' | 'borderrand' | 'schutting'
+export type ConfigTypeId =
+  | 'plantenbak'
+  | 'keerwand'
+  | 'borderrand'
+  | 'schutting'
+  | 'staptegel'
+  | 'naambord'
+  | 'figuur'
+
+export type DecoState = {
+  fig: string
+  x: number
+  y: number
+  s: number
+  text: string
+  tx: number
+  ty: number
+  ts: number
+  nr: string
+  nx: number
+  ny: number
+  ns: number
+  custom?: [number, number][][]
+}
 
 export type ConfigState = {
   typeId: ConfigTypeId
   dims: { l: number; b: number; h: number }
   thickness: number
   options: Record<string, boolean>
+  deco?: DecoState
+}
+
+/**
+ * Omtrek/oppervlak per eenheid figuurhoogte — identiek aan FIGURES in
+ * src/data/figures.ts (herbereken met figureStats bij puntwijzigingen).
+ */
+const FIG_STATS: Record<string, { per: number; area: number; paths: number }> = {
+  hart: { per: 3.39, area: 0.68, paths: 1 },
+  ster: { per: 3.95, area: 0.36, paths: 1 },
+  zon: { per: 5.3, area: 0.47, paths: 1 },
+  vlinder: { per: 4.71, area: 0.79, paths: 1 },
+  vogel: { per: 3.29, area: 0.34, paths: 1 },
+  hond: { per: 3.61, area: 0.44, paths: 1 },
+  kat: { per: 4.47, area: 0.47, paths: 1 },
+  hert: { per: 4.37, area: 0.33, paths: 1 },
+  boom: { per: 3.37, area: 0.3, paths: 1 },
+  tulp: { per: 3.31, area: 0.29, paths: 1 },
+  molen: { per: 4.24, area: 0.21, paths: 2 },
+  kerk: { per: 3.52, area: 0.55, paths: 1 },
+}
+
+/** Zelfde rekengang als figureStats client-side, voor eigen silhouetten. */
+function customStats(paths: [number, number][][]): { per: number; area: number; paths: number } {
+  const ys = paths.flat().map((p) => p[1])
+  const hgt = Math.max(...ys) - Math.min(...ys) || 1
+  let per = 0
+  let area = 0
+  for (const pts of paths) {
+    for (let i = 0; i < pts.length; i++) {
+      const [x1, y1] = pts[i]
+      const [x2, y2] = pts[(i + 1) % pts.length]
+      per += Math.hypot(x2 - x1, y2 - y1)
+      area += x1 * y2 - x2 * y1
+    }
+  }
+  return {
+    per: Math.round((per / hgt) * 100) / 100,
+    area: Math.round((Math.abs(area) / 2 / (hgt * hgt)) * 100) / 100,
+    paths: paths.length,
+  }
+}
+
+function decoStats(deco: DecoState | undefined): { per: number; area: number; paths: number } {
+  if (!deco || !deco.fig) return { per: 0, area: 0, paths: 0 }
+  if (deco.fig === 'custom') {
+    return deco.custom?.length ? customStats(deco.custom) : { per: 0, area: 0, paths: 0 }
+  }
+  return FIG_STATS[deco.fig] ?? { per: 0, area: 0, paths: 0 }
 }
 
 /** Bladdefaults — identiek aan PRICING in configuratorSchema.ts. */
@@ -48,6 +120,7 @@ export const PRICING = {
     pennenPerStuk: 2,
     maxStukBorder: 2300,
     overlapBorder: 60,
+    letterFactor: 3.2,
   },
   order: { startkosten: 15, programmeren: 12.5, dxfToeslag: 7.5, nestingfactorDxf: 1.15 },
   logistiek: {
@@ -90,15 +163,89 @@ const TYPES: Record<
     thicknesses: [2, 3],
     options: { laser: 140, poeren: 49, roest: 45 },
   },
+  staptegel: {
+    dims: { l: [300, 800] },
+    thicknesses: [4, 5],
+    options: { roest: 25 },
+  },
+  naambord: {
+    dims: { l: [250, 1000], h: [120, 500] },
+    thicknesses: [2, 3],
+    options: { roest: 25 },
+  },
+  figuur: {
+    dims: { h: [300, 1500] },
+    thicknesses: [2, 3, 4],
+    options: { pennen: 9, roest: 35 },
+  },
+}
+
+/** Deco-blok decoderen — zelfde formaat als encodeDeco in src/lib/cfg.ts. */
+function decodeDeco(raw: string): DecoState {
+  const deco: DecoState = {
+    fig: '', x: 0.5, y: 0.5, s: 0.5,
+    text: '', tx: 0.5, ty: 0.38, ts: 0.28,
+    nr: '', nx: 0.78, ny: 0.66, ns: 0.4,
+  }
+  const kv = raw.split('~')
+  const num = (v: string) => (parseInt(v, 10) || 0) / 1000
+  for (let i = 0; i + 1 < kv.length; i += 2) {
+    const value = kv[i + 1]
+    switch (kv[i]) {
+      case 'f': deco.fig = decodeURIComponent(value); break
+      case 'x': deco.x = num(value); break
+      case 'y': deco.y = num(value); break
+      case 's': deco.s = num(value); break
+      case 't': deco.text = decodeURIComponent(value).slice(0, 24); break
+      case 'a': deco.tx = num(value); break
+      case 'b': deco.ty = num(value); break
+      case 'c': deco.ts = num(value); break
+      case 'n': deco.nr = decodeURIComponent(value).slice(0, 6); break
+      case 'd': deco.nx = num(value); break
+      case 'e': deco.ny = num(value); break
+      case 'g': deco.ns = num(value); break
+      case 'p':
+        deco.custom = value
+          .split('!')
+          .map((path) =>
+            path
+              .split('_')
+              .map((pair) => pair.split('-').map((n) => parseInt(n, 10) || 0) as [number, number])
+              .filter((p) => p.length === 2),
+          )
+          .filter((path) => path.length >= 3)
+        break
+    }
+  }
+  return deco
 }
 
 export function parseCfg(raw: string): ConfigState | null {
-  const [typeId, dims, thickness, opts] = raw.split('.')
+  const [typeId, dims, thickness, opts, ...decoRest] = raw.split('.')
   if (!typeId || !(typeId in TYPES)) return null
   const [l, b, h] = (dims || '').split('x').map((n) => parseInt(n, 10) || 0)
   const options: Record<string, boolean> = {}
   for (const o of (opts || '').split('-')) if (o) options[o] = true
-  return { typeId: typeId as ConfigTypeId, dims: { l, b, h }, thickness: parseInt(thickness, 10) || 3, options }
+  const state: ConfigState = {
+    typeId: typeId as ConfigTypeId,
+    dims: { l, b, h },
+    thickness: parseInt(thickness, 10) || 3,
+    options,
+  }
+  const hasDeco = typeId === 'staptegel' || typeId === 'naambord' || typeId === 'figuur'
+  if (hasDeco) {
+    state.deco = decoRest.length > 0 ? decodeDeco(decoRest.join('.')) : decodeDeco('')
+    if (typeId === 'naambord' && decoRest.length === 0) {
+      state.deco.text = 'Cortemo'
+      state.deco.nr = '12'
+      state.deco.s = 0.34
+    }
+    if (typeId === 'figuur' && decoRest.length === 0) {
+      state.deco.fig = 'hert'
+      state.deco.s = 1
+    }
+  }
+  return state
 }
 
 /** Per-blok merge van opgeslagen tarieven over de bladdefaults. */
@@ -194,6 +341,55 @@ function geometryFor(state: ConfigState, P: PricingSettings): Geometry {
         weldM: 1.2 + (panelSplit ? Math.min(L, H) : 0),
         couplers: 0,
         segments: panelSplit ? 2 : 1,
+      }
+    }
+    case 'staptegel': {
+      const fig = decoStats(state.deco)
+      const figH = (state.deco?.s ?? 0.5) * L
+      return {
+        areaM2: Math.PI * (L / 2) ** 2,
+        cutM: Math.PI * L + fig.per * figH,
+        piercings: 1 + fig.paths,
+        bends: 0,
+        longBends: 0,
+        weldM: 0,
+        couplers: 0,
+        segments: 1,
+      }
+    }
+    case 'naambord': {
+      const d = state.deco
+      const fig = decoStats(d)
+      const letterCut = (tekst: string, hoogteFr: number) =>
+        tekst.trim().length * P.optieTarieven.letterFactor * hoogteFr * H
+      const cut =
+        2 * (L + H) +
+        fig.per * (d?.s ?? 0.3) * H +
+        letterCut(d?.text ?? '', d?.ts ?? 0.28) +
+        letterCut(d?.nr ?? '', d?.ns ?? 0.4)
+      const letters = (d?.text.trim().length ?? 0) + (d?.nr.trim().length ?? 0)
+      return {
+        areaM2: L * H,
+        cutM: cut,
+        piercings: 1 + 4 + 2 * letters + fig.paths,
+        bends: 0,
+        longBends: 0,
+        weldM: 0,
+        couplers: 0,
+        segments: 1,
+      }
+    }
+    case 'figuur': {
+      const fig = decoStats(state.deco)
+      return {
+        areaM2: fig.area * H * H,
+        cutM: fig.per * H,
+        piercings: Math.max(1, fig.paths),
+        bends: 0,
+        longBends: 0,
+        weldM: 0,
+        couplers: 0,
+        segments: 1,
       }
     }
   }
@@ -296,6 +492,9 @@ export function validateConfig(state: ConfigState, P: PricingSettings): string[]
   }
   if (state.typeId === 'keerwand' && l / g.segments > P.zetten.maxZetlengte) {
     errors.push(`De voetzetting per segment overschrijdt de maximale zetlengte van ${P.zetten.maxZetlengte} mm.`)
+  }
+  if (state.typeId === 'figuur' && decoStats(state.deco).per === 0) {
+    errors.push('Een silhouet vereist een figuur uit de bibliotheek of een eigen foto-silhouet.')
   }
   return errors
 }

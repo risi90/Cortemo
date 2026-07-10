@@ -18,7 +18,7 @@ import type { ConfigTypeId } from '../data/configuratorSchema'
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 
-type MiniModel = 'bak' | 'strip' | 'panel' | 'bord' | 'figuur' | 'ring' | 'schaal' | 'aanvraag' | 'dxf'
+type MiniModel = 'bak' | 'strip' | 'panel' | 'bord' | 'figuur' | 'ring' | 'tegel' | 'aanvraag' | 'dxf'
 
 type MiniProduct = {
   id: string
@@ -38,24 +38,31 @@ const MINI_CATS = [
   { id: 'deco', label: 'Decoratie' },
 ]
 
+/**
+ * In sync met de 3D-configurator: alles mét cfgType opent daar direct het
+ * juiste producttype; zonder cfgType is het bewust een offerte-route
+ * (ronde, diepe vormen zoals vuurschalen walsen we niet zelf — plat rond
+ * zoals de staptegel kan wél direct).
+ */
 const MINI_CATALOG: MiniProduct[] = [
   { id: 'keerwand', label: 'Keerwand', cat: 'hoogte', model: 'strip', d: { L: 2500, H: 800 }, vanaf: 87, cfgType: 'keerwand' },
   { id: 'borderrand', label: 'Borderrand', cat: 'hoogte', model: 'strip', d: { L: 2500, H: 150 }, vanaf: 35, cfgType: 'borderrand' },
   { id: 'vijverrand', label: 'Vijverrand', cat: 'hoogte', model: 'strip', d: { L: 2000, H: 300 }, vanaf: 58, cfgType: 'borderrand' },
   { id: 'schutting', label: 'Schutting', cat: 'hoogte', model: 'panel', d: { BW: 1800, BH: 1800 }, vanaf: 257, cfgType: 'schutting' },
+  { id: 'staptegel', label: 'Staptegel', cat: 'hoogte', model: 'tegel', d: { D: 450 }, vanaf: 77, cfgType: 'staptegel' },
   { id: 'trap', label: 'Traptreden', cat: 'hoogte', model: 'aanvraag' },
   { id: 'plantenbak', label: 'Plantenbak', cat: 'planten', model: 'bak', d: { L: 2000, W: 600, H: 600 }, vanaf: 120, cfgType: 'plantenbak' },
   { id: 'moestuinbak', label: 'Moestuinbak', cat: 'planten', model: 'bak', d: { L: 1500, W: 800, H: 500 }, vanaf: 202, cfgType: 'plantenbak' },
-  { id: 'boomring', label: 'Boomring', cat: 'planten', model: 'ring', d: { D: 1000, RB: 200 }, vanaf: 72 },
+  { id: 'boomring', label: 'Boomring', cat: 'planten', model: 'ring', d: { D: 1000, RB: 200 } },
   { id: 'sokkel', label: 'Sokkel', cat: 'planten', model: 'bak', d: { L: 400, W: 400, H: 800 }, vanaf: 112, cfgType: 'plantenbak' },
   { id: 'pergola', label: 'Pergola', cat: 'planten', model: 'aanvraag' },
-  { id: 'vuurschaal', label: 'Vuurschaal', cat: 'vuurwater', model: 'schaal', d: { D: 900 }, vanaf: 192 },
   { id: 'houtopslag', label: 'Houtopslag', cat: 'vuurwater', model: 'bak', d: { L: 1800, W: 400, H: 1600 }, vanaf: 491, cfgType: 'plantenbak' },
+  { id: 'vuurschaal', label: 'Vuurschaal', cat: 'vuurwater', model: 'aanvraag' },
   { id: 'waterelement', label: 'Waterelement', cat: 'vuurwater', model: 'aanvraag' },
   { id: 'buitenkeuken', label: 'Buitenkeuken', cat: 'vuurwater', model: 'aanvraag' },
-  { id: 'naambord', label: 'Naambord', cat: 'deco', model: 'bord', d: { BW: 400, BH: 200 }, vanaf: 43 },
-  { id: 'figuur', label: 'Figuur', cat: 'deco', model: 'figuur', d: { FH: 1200 }, vanaf: 51 },
-  { id: 'muurdecoratie', label: 'Muurdecoratie', cat: 'deco', model: 'panel', d: { BW: 800, BH: 800 }, vanaf: 105 },
+  { id: 'naambord', label: 'Naambord', cat: 'deco', model: 'bord', d: { BW: 450, BH: 220 }, vanaf: 86, cfgType: 'naambord' },
+  { id: 'figuur', label: 'Figuur', cat: 'deco', model: 'figuur', d: { FH: 800 }, vanaf: 73, cfgType: 'figuur' },
+  { id: 'muurdecoratie', label: 'Muurdecoratie', cat: 'deco', model: 'figuur', d: { FH: 800 }, vanaf: 73, cfgType: 'figuur' },
   { id: 'brievenbus', label: 'Brievenbus', cat: 'deco', model: 'bak', d: { L: 380, W: 300, H: 1200 }, vanaf: 338, cfgType: 'plantenbak' },
   { id: 'verlichting', label: 'Verlichting', cat: 'deco', model: 'aanvraag' },
   { id: 'zitbank', label: 'Zitbank', cat: 'deco', model: 'aanvraag' },
@@ -216,16 +223,22 @@ function RingPreview({ D, RB }: { D: number; RB: number }) {
   )
 }
 
-function SchaalPreview() {
+/** Platte ronde staptegel met motief-uitsnede, licht isometrisch. */
+function TegelPreview() {
   return (
     <svg viewBox="0 0 300 130" className="h-full w-full">
       <defs>
-        <CortenGrad id="miniSchaalGrad" />
+        <CortenGrad id="miniTegelGrad" />
+        <mask id="miniTegelCut">
+          <ellipse cx="150" cy="70" rx="78" ry="34" fill="white" />
+          <path
+            d="M150 82 L138 68 L135 62 L136 56 L140 52 L145 52 L149 56 L150 59 L151 56 L155 52 L160 52 L164 56 L165 62 L162 68 Z"
+            fill="black"
+          />
+        </mask>
       </defs>
-      <line x1="70" y1="112" x2="230" y2="112" stroke="#E5E7EB" strokeWidth="2" />
-      <path d="M 80 62 A 70 34 0 0 0 220 62 Z" fill="url(#miniSchaalGrad)" />
-      <ellipse cx="150" cy="62" rx="70" ry="9" fill="#4A2410" />
-      <path d="M 138 95 l 24 0 l 5 16 l -34 0 Z" fill="hsl(19 62% 24%)" />
+      <ellipse cx="150" cy="75" rx="78" ry="34" fill="hsl(19 62% 22%)" />
+      <ellipse cx="150" cy="70" rx="78" ry="34" fill="url(#miniTegelGrad)" mask="url(#miniTegelCut)" />
     </svg>
   )
 }
@@ -273,7 +286,7 @@ function MiniPreview({ p }: { p: MiniProduct }) {
   if (p.model === 'bord') return <BordPreview BW={d.BW} BH={d.BH} />
   if (p.model === 'figuur') return <FigPreview FH={d.FH} />
   if (p.model === 'ring') return <RingPreview D={d.D} RB={d.RB} />
-  if (p.model === 'schaal') return <SchaalPreview />
+  if (p.model === 'tegel') return <TegelPreview />
   if (p.model === 'panel') return <PanelPreview BW={d.BW} BH={d.BH} />
   return null
 }
@@ -300,7 +313,8 @@ export function MiniConfigurator({
     setCat(id)
     setProductId(MINI_CATALOG.find((p) => p.cat === id)!.id)
   }
-  const isAanvraag = product.model === 'aanvraag' || product.model === 'dxf'
+  // alles zonder koppeling naar de 3D-configurator loopt via de offerte-route
+  const isAanvraag = !product.cfgType
 
   return (
     <div className="w-full shrink-0 lg:w-[min(480px,45%)]">

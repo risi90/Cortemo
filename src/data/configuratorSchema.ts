@@ -5,7 +5,14 @@
  * toevoegen = alleen dit bestand aanpassen.
  */
 
-export type ConfigTypeId = 'plantenbak' | 'keerwand' | 'borderrand' | 'schutting'
+export type ConfigTypeId =
+  | 'plantenbak'
+  | 'keerwand'
+  | 'borderrand'
+  | 'schutting'
+  | 'staptegel'
+  | 'naambord'
+  | 'figuur'
 
 export type DimensionKey = 'l' | 'b' | 'h'
 
@@ -37,6 +44,14 @@ export type ConfigType = {
   thicknesses: number[]
   defaultThickness: number
   options: ConfigOption[]
+  /**
+   * Ontwerp-editor: 'uitsnede' = figuur als gat in de plaat (staptegel),
+   * 'bord' = tekst + huisnummer + figuur uitgesneden (naambord),
+   * 'vorm' = het figuur ís het product (silhouet). Alles versleepbaar.
+   */
+  deco?: 'uitsnede' | 'bord' | 'vorm'
+  /** 'rond' rendert/rekent als schijf (dim l = diameter). */
+  shape?: 'rond'
 }
 
 /**
@@ -99,6 +114,8 @@ export const PRICING = {
     maxStukBorder: 2300,
     /** Overlap per borderrand-koppeling, mm. */
     overlapBorder: 60,
+    /** Snijlengte per uitgesneden letter/cijfer = factor × letterhoogte. */
+    letterFactor: 3.2,
   },
   /** F. Order, verpakking & transport */
   order: {
@@ -199,6 +216,43 @@ export const CONFIG_TYPES: ConfigType[] = [
       { id: 'poeren', label: 'Betonpoeren (2 stuks)', price: 49, weightKg: 38 },
       { id: 'roest', label: 'Versneld roestproces', price: 45 },
     ],
+  },
+  {
+    id: 'staptegel',
+    label: 'Staptegel',
+    desc: 'Platte, ronde tegel voor paden door gras of grind — beloopbaar dik plaatstaal, optioneel met een uitgesneden motief.',
+    dimensions: [{ key: 'l', label: 'Diameter', min: 300, max: 800, default: 450, step: 10 }],
+    thicknesses: [4, 5],
+    defaultThickness: 5,
+    options: [{ id: 'roest', label: 'Versneld roestproces', price: 25 }],
+    deco: 'uitsnede',
+    shape: 'rond',
+  },
+  {
+    id: 'naambord',
+    label: 'Naambord',
+    desc: 'Naam- of huisnummerbord met uitgesneden tekst. Versleep tekst en nummer op de plaat tot het klopt.',
+    dimensions: [
+      { key: 'l', label: 'Breedte', min: 250, max: 1000, default: 450, step: 10 },
+      { key: 'h', label: 'Hoogte', min: 120, max: 500, default: 220, step: 10 },
+    ],
+    thicknesses: [2, 3],
+    defaultThickness: 2,
+    options: [{ id: 'roest', label: 'Versneld roestproces', price: 25 }],
+    deco: 'bord',
+  },
+  {
+    id: 'figuur',
+    label: 'Figuur',
+    desc: 'Vrijstaand silhouet uit één plaat — kies uit de bibliotheek of upload een foto voor een eigen silhouet.',
+    dimensions: [{ key: 'h', label: 'Hoogte', min: 300, max: 1500, default: 800, step: 10 }],
+    thicknesses: [2, 3, 4],
+    defaultThickness: 3,
+    options: [
+      { id: 'pennen', label: 'Grondpennen (2 stekers)', price: 9, weightKg: 1 },
+      { id: 'roest', label: 'Versneld roestproces', price: 35 },
+    ],
+    deco: 'vorm',
   },
 ]
 

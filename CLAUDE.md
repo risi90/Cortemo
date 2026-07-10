@@ -19,7 +19,16 @@ productdata in `src/data/catalog.ts`, cart-helpers in `src/lib/cart.ts`.
 3D-configurator (`?page=maatwerk`): schema-gedreven. Producttypes, maat-
 grenzen, opties en tarieven staan in `src/data/configuratorSchema.ts` —
 tarieven aanpassen of een producttype toevoegen gebeurt dáár, niet in de
-3D-code. Prijsberekening in `src/lib/pricing.ts` (puur), state in
+3D-code. Zeven types: plantenbak, keerwand, borderrand, schutting,
+staptegel (rond/plat), naambord en figuur. De laatste drie hebben een
+ontwerp-editor (`deco` in ConfigState): lasersnijbare figuren uit
+`src/data/figures.ts` (wijzig je punten, herbereken dan per/area met
+figureStats en werk óók FIG_STATS in de place-order functie bij), tekst en
+huisnummer versleepbaar in het 3D-beeld, en een foto-naar-silhouet-editor
+(`src/lib/trace.ts` + PhotoSilhouette). De mini-configurator op de
+homepage moet in sync blijven met deze types: alles zonder `cfgType` in
+MINI_CATALOG is bewust een offerte-route (ronde díepe vormen zoals
+vuurschalen walsen we niet — plat rond mag wel). Prijsberekening in `src/lib/pricing.ts` (puur), state in
 `src/store/configuratorStore.ts` (zustand), 3D in
 `src/components/Configurator3D/` (react-three-fiber, lazy geladen zodat de
 webshop-bundle klein blijft). Het cortenmateriaal combineert een

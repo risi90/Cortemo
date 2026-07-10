@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowRight, Menu, Moon, Sun, X } from 'lucide-react'
 import type { Theme } from '../lib/useTheme'
 import { CortemoLogo } from './CortemoLogo'
@@ -45,6 +45,18 @@ export function CortemoNav({
   onConfigurator,
 }: CortemoNavProps) {
   const [open, setOpen] = useState(false)
+
+  // het uitklapmenu hangt aan de navbar in de documentflow; zonder
+  // scroll-lock scrolt een open menu mee en blijft het halverwege de
+  // pagina zweven — dus: pagina op slot zolang het menu open staat
+  useEffect(() => {
+    if (!open) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [open])
 
   const links: NavLink[] = [
     { label: 'Assortiment', href: '/', onClick: onHome },

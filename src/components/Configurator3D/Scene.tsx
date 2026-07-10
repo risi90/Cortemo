@@ -36,15 +36,25 @@ export function Scene() {
   const dims = useConfiguratorStore((s) => s.dims)
   const thickness = useConfiguratorStore((s) => s.thickness)
   const options = useConfiguratorStore((s) => s.options)
+  const deco = useConfiguratorStore((s) => s.deco)
   const rust = useConfiguratorStore((s) => s.rust)
   const showDims = useConfiguratorStore((s) => s.showDims)
   const autoRotate = useConfiguratorStore((s) => s.autoRotate)
   const cameraView = useConfiguratorStore((s) => s.cameraView)
+  const dragging = useConfiguratorStore((s) => s.dragging)
+  const setDragging = useConfiguratorStore((s) => s.setDragging)
 
   const controls = useRef<OrbitControlsImpl>(null)
   const camera = useThree((s) => s.camera)
 
   useEffect(() => updateCorten(rust), [rust])
+
+  // loslaten (waar dan ook) beëindigt het verslepen van een ontwerp-element
+  useEffect(() => {
+    const up = () => setDragging(null)
+    window.addEventListener('pointerup', up)
+    return () => window.removeEventListener('pointerup', up)
+  }, [setDragging])
 
   // Camerastandpunt bij typewissel of preset-knop; maatwijzigingen laten de
   // camera met rust zodat de gebruiker zijn eigen standpunt houdt.
@@ -90,7 +100,7 @@ export function Scene() {
       />
       <directionalLight position={[-4, 2.5, -2]} intensity={0.35} />
 
-      <ProductModel state={{ typeId, dims, thickness, options }} rust={rust} />
+      <ProductModel state={{ typeId, dims, thickness, options, deco }} rust={rust} />
       {showDims && <Dimensions dims={dims} keys={dimKeys} />}
 
       <ContactShadows position={[0, 0, 0]} opacity={0.45} scale={10} blur={2.2} far={2.5} />
@@ -98,6 +108,7 @@ export function Scene() {
       <OrbitControls
         ref={controls}
         makeDefault
+        enabled={!dragging}
         enableDamping
         dampingFactor={0.08}
         minDistance={0.15}

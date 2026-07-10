@@ -3,7 +3,62 @@ import {
   type ConfigTypeId,
   type DimensionKey,
 } from '../data/configuratorSchema'
+import { figure, figureStats, type FigurePath } from '../data/figures'
 import { getPricing } from './adminStore'
+
+/**
+ * Ontwerp-editor-staat: figuur, tekst en huisnummer met versleepbare
+ * posities. x/y = middelpunt als fractie van de plaat, s = hoogte als
+ * fractie van de plaathoogte (bij staptegel: van de diameter).
+ */
+export type DecoState = {
+  /** Figuur-id uit FIGURES, 'custom' (eigen silhouet) of '' (geen). */
+  fig: string
+  x: number
+  y: number
+  s: number
+  text: string
+  tx: number
+  ty: number
+  ts: number
+  nr: string
+  nx: number
+  ny: number
+  ns: number
+  /** Eigen silhouet: genormaliseerde punten 0–100 (y omlaag). */
+  custom?: FigurePath[]
+}
+
+export function defaultDeco(typeId: ConfigTypeId): DecoState {
+  const base: DecoState = {
+    fig: '',
+    x: 0.5,
+    y: 0.5,
+    s: 0.5,
+    text: '',
+    tx: 0.5,
+    ty: 0.38,
+    ts: 0.28,
+    nr: '',
+    nx: 0.78,
+    ny: 0.66,
+    ns: 0.4,
+  }
+  if (typeId === 'naambord') return { ...base, text: 'Cortemo', nr: '12', fig: '', x: 0.16, y: 0.6, s: 0.34 }
+  if (typeId === 'figuur') return { ...base, fig: 'hert', s: 1 }
+  return base
+}
+
+/** Omtrek/oppervlak per eenheid hoogte van het gekozen figuur. */
+export function decoStats(deco: DecoState | undefined): { per: number; area: number; paths: number } {
+  if (!deco || !deco.fig) return { per: 0, area: 0, paths: 0 }
+  if (deco.fig === 'custom' && deco.custom?.length) {
+    const s = figureStats(deco.custom)
+    return { ...s, paths: deco.custom.length }
+  }
+  const f = figure(deco.fig)
+  return f ? { per: f.per, area: f.area, paths: f.paths.length } : { per: 0, area: 0, paths: 0 }
+}
 
 export type ConfigState = {
   typeId: ConfigTypeId
@@ -12,6 +67,7 @@ export type ConfigState = {
   /** Staaldikte in mm. */
   thickness: number
   options: Record<string, boolean>
+  deco?: DecoState
 }
 
 export type PriceBreakdown = {
@@ -158,6 +214,58 @@ function geometryFor(state: ConfigState, P: ReturnType<typeof getPricing>): Geom
         weldM: 1.2 + (panelSplit ? Math.min(L, H) : 0),
         couplers: 0,
         segments: panelSplit ? 2 : 1,
+      }
+    }
+    case 'staptegel': {
+      // ronde schijf (l = diameter), optioneel een uitgesneden motief
+      const fig = decoStats(state.deco)
+      const figH = (state.deco?.s ?? 0.5) * L
+      return {
+        areaM2: Math.PI * (L / 2) ** 2,
+        cutM: Math.PI * L + fig.per * figH,
+        piercings: 1 + fig.paths,
+        bends: 0,
+        longBends: 0,
+        weldM: 0,
+        couplers: 0,
+        segments: 1,
+      }
+    }
+    case 'naambord': {
+      // plaat met uitgesneden tekst/nummer/figuur + 4 montagegaten
+      const d = state.deco
+      const fig = decoStats(d)
+      const letterCut = (tekst: string, hoogteFr: number) =>
+        tekst.trim().length * P.optieTarieven.letterFactor * hoogteFr * H
+      const cut =
+        2 * (L + H) +
+        fig.per * (d?.s ?? 0.3) * H +
+        letterCut(d?.text ?? '', d?.ts ?? 0.28) +
+        letterCut(d?.nr ?? '', d?.ns ?? 0.4)
+      const letters = (d?.text.trim().length ?? 0) + (d?.nr.trim().length ?? 0)
+      return {
+        areaM2: L * H,
+        cutM: cut,
+        piercings: 1 + 4 + 2 * letters + fig.paths,
+        bends: 0,
+        longBends: 0,
+        weldM: 0,
+        couplers: 0,
+        segments: 1,
+      }
+    }
+    case 'figuur': {
+      // het silhouet ís het product; genormaliseerde stats × hoogte
+      const fig = decoStats(state.deco)
+      return {
+        areaM2: fig.area * H * H,
+        cutM: fig.per * H,
+        piercings: Math.max(1, fig.paths),
+        bends: 0,
+        longBends: 0,
+        weldM: 0,
+        couplers: 0,
+        segments: 1,
       }
     }
   }
@@ -321,6 +429,30 @@ export function validateConfig(state: ConfigState): ConfigValidation {
   // zetting langer dan de kantbank bij keerwand-segmenten kan niet
   if (state.typeId === 'keerwand' && l / g.segments > P.zetten.maxZetlengte) {
     errors.push(`De voetzetting per segment overschrijdt de maximale zetlengte van ${P.zetten.maxZetlengte} mm.`)
+  }
+
+  // ontwerp-editor: figuur verplicht bij silhouet, kleine letters vallen uit
+  if (state.typeId === 'figuur' && decoStats(state.deco).per === 0) {
+    errors.push('Kies een figuur uit de bibliotheek of upload een foto voor een eigen silhouet.')
+  }
+  if (state.typeId === 'naambord' && state.deco) {
+    const letterH = Math.min(
+      state.deco.text.trim() ? state.deco.ts * h : Infinity,
+      state.deco.nr.trim() ? state.deco.ns * h : Infinity,
+    )
+    if (letterH !== Infinity && letterH < 30) {
+      warnings.push('Letters kleiner dan 30 mm snijden niet strak uit; maak de tekst of het bord iets groter.')
+    }
+    if (!state.deco.text.trim() && !state.deco.nr.trim() && !state.deco.fig) {
+      warnings.push('Het bord is nu leeg — voeg tekst, een huisnummer of een figuur toe.')
+    }
+    warnings.push('Losse binnenstukken van letters (zoals in O en A) worden stencil-vast meegesneden.')
+  }
+  if ((state.typeId === 'staptegel' || state.typeId === 'naambord') && state.deco?.fig) {
+    const basis = state.typeId === 'staptegel' ? l : h
+    if (state.deco.s * basis < 60) {
+      warnings.push('Het motief is erg klein (< 60 mm); fijne details kunnen wegvallen bij het snijden.')
+    }
   }
 
   return { errors, warnings }
