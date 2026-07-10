@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ArrowRight, Check, Lock, ShoppingCart, Truck } from 'lucide-react'
 import { euro } from '../data/catalog'
 import { cartTotal, cartWeight, VAT_RATE, type CartItem } from '../lib/cart'
-import { placeOrder, validateDiscount } from '../lib/adminStore'
+import { getActivePartner, getProjects, placeOrder, validateDiscount } from '../lib/adminStore'
 
 const PAYMENT_METHODS = ['iDEAL', 'Bancontact', 'Creditcard', 'Bankoverschrijving']
 
@@ -18,12 +18,29 @@ export function Checkout({
   onClear: () => void
   onShop: () => void
 }) {
+  // ingelogde B2B-partner: prefill, korting, op rekening en projectkoppeling
+  const [partner] = useState(getActivePartner)
+  const partnerProjects = partner
+    ? getProjects().filter((p) => p.partnerEmail.toLowerCase() === partner.email.toLowerCase())
+    : []
+  // partner met betaaltermijn bestelt altijd op rekening (zo verwerkt de
+  // server hem ook); anders de gewone betaalwijzen
+  const onAccountLabel = partner && partner.terms > 0 ? `Op rekening (${partner.terms} dagen)` : null
+  const methods = onAccountLabel ? [onAccountLabel] : PAYMENT_METHODS
+
   const [placed, setPlaced] = useState<string | null>(null)
   const [tried, setTried] = useState(false)
   const [busy, setBusy] = useState(false)
   const [serverError, setServerError] = useState('')
-  const [payment, setPayment] = useState(PAYMENT_METHODS[0])
-  const [form, setForm] = useState({ name: '', email: '', street: '', zip: '', city: '' })
+  const [payment, setPayment] = useState(methods[0])
+  const [projectId, setProjectId] = useState('')
+  const [form, setForm] = useState({
+    name: partner?.contact ?? '',
+    email: partner?.email ?? '',
+    street: '',
+    zip: '',
+    city: '',
+  })
   const set = (key: keyof typeof form) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }))
   const [codeInput, setCodeInput] = useState('')
@@ -41,8 +58,15 @@ export function Checkout({
     setCodeMsg('')
   }
 
+  // korting: partnerkorting en code stapelen niet — de hoogste geldt
+  // (de server rekent exact dezelfde regel na in place-order)
   const subtotal = cartTotal(items)
-  const discountAmount = discount ? Math.round(subtotal * (discount.percent / 100) * 100) / 100 : 0
+  const partnerPct = partner?.discount ?? 0
+  const codePct = discount?.percent ?? 0
+  const pct = Math.max(partnerPct, codePct)
+  const discountLabel =
+    pct === 0 ? '' : partnerPct >= codePct ? `B2B ${partnerPct}%` : (discount?.code ?? '')
+  const discountAmount = Math.round(subtotal * (pct / 100) * 100) / 100
   const total = subtotal - discountAmount
   const valid =
     form.name.trim().length > 1 &&
@@ -67,7 +91,7 @@ export function Checkout({
       total,
       discountCode: discount?.code ?? '',
       discountAmount,
-      projectId: '',
+      projectId,
     })
     setBusy(false)
     if (!result.ok) {
@@ -93,6 +117,13 @@ export function Checkout({
               Je bestelling <span className="font-semibold text-white">{placed}</span> is
               geplaatst. Je ontvangt de bevestiging en track &amp; trace op {form.email}. Ons
               pallettransport levert binnen 5 tot 8 werkdagen.
+              {onAccountLabel && (
+                <>
+                  {' '}
+                  Betaling gaat <span className="font-semibold text-white">op rekening</span> met
+                  een termijn van {partner!.terms} dagen; de factuur volgt per mail.
+                </>
+              )}
             </p>
           </div>
           <button
@@ -138,6 +169,44 @@ export function Checkout({
       <div className="mt-8 flex flex-col gap-6 lg:flex-row">
         {/* gegevens */}
         <div className="liquid-glass min-w-0 flex-1 space-y-5 self-start rounded-2xl p-6 text-white sm:p-8">
+          {partner && (
+            <div className="space-y-3 rounded-xl bg-white/5 p-4">
+              <p className="text-[13px] font-semibold">
+                Zakelijk besteld als {partner.company}
+                <span className="ml-2 rounded-full bg-ok/20 px-2 py-0.5 text-[11px] font-bold text-ok">
+                  {partner.discount}% partnerkorting
+                </span>
+              </p>
+              {partnerProjects.length > 0 && (
+                <label className="flex flex-wrap items-center gap-2 text-[13px] text-white/70">
+                  Koppel aan project
+                  <select
+                    value={projectId}
+                    onChange={(e) => {
+                      const pid = e.target.value
+                      setProjectId(pid)
+                      const proj = partnerProjects.find((p) => p.id === pid)
+                      if (proj?.siteAddress) {
+                        // werkadres van het project als bezorgadres voorzetten
+                        setForm((f) => ({ ...f, street: proj.siteAddress }))
+                      }
+                    }}
+                    className="min-w-0 flex-1 rounded-lg border border-white/15 bg-white/5 px-2 py-2 text-[13px] font-semibold text-white outline-none focus:border-rust"
+                    style={{ colorScheme: 'dark' }}
+                  >
+                    <option value="" style={{ backgroundColor: '#14191E' }}>
+                      Geen project
+                    </option>
+                    {partnerProjects.map((p) => (
+                      <option key={p.id} value={p.id} style={{ backgroundColor: '#14191E' }}>
+                        {p.name} {p.siteAddress ? '· ' + p.siteAddress : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
           <div className="grid gap-5 sm:grid-cols-2">
             <div>
               <div className="mb-2 text-[13px] font-semibold">Naam</div>
@@ -201,7 +270,7 @@ export function Checkout({
           <div>
             <div className="mb-2 text-[13px] font-semibold">Betaalwijze</div>
             <div className="divide-y divide-white/5 rounded-xl bg-white/5 px-1">
-              {PAYMENT_METHODS.map((method) => (
+              {methods.map((method) => (
                 <label
                   key={method}
                   className="flex cursor-pointer items-center gap-2.5 px-4 py-3 text-[13px] text-white/80"
@@ -265,15 +334,20 @@ export function Checkout({
               </button>
             </div>
             {codeMsg && <p className="-mt-2 text-[12px] font-medium text-rust">{codeMsg}</p>}
-            {discount && (
+            {discount && codePct > partnerPct && (
               <p className="-mt-2 text-[12px] font-semibold text-ok">
                 Code {discount.code} toegepast: −{discount.percent}%
               </p>
             )}
+            {discount && partner && partnerPct >= codePct && (
+              <p className="-mt-2 text-[12px] font-medium text-white/55">
+                Je partnerkorting ({partnerPct}%) is hoger dan deze code en geldt.
+              </p>
+            )}
             <div className="space-y-1 border-t border-white/10 pt-4 text-[13px]">
-              {discount && (
+              {pct > 0 && (
                 <div className="flex justify-between text-white/55">
-                  <span>Korting ({discount.code})</span>
+                  <span>Korting ({discountLabel})</span>
                   <span className="tabular-nums">−{euro(discountAmount)}</span>
                 </div>
               )}

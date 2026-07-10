@@ -50,7 +50,16 @@ maatgrenzen in `src/lib/pricing.ts`/`configuratorSchema.ts`, werk die kopie
 dan ook bij en herdeploy (tarieven komen live uit cortemo_settings en
 hoeven dat niet). Facturen zijn onveranderlijk en doorlopend genummerd
 (2026-0001) via de SQL-functie `cortemo_create_invoice` (rpc, alleen
-admins). Beheerders zijn auth-users die in
+admins). B2B: place-order herkent de ingelogde partner via het JWT en past
+diens korting en betaaltermijn (op rekening) server-side toe — de checkout
+toont dezelfde hoogste-korting-wint-regel alleen ter informatie.
+Fabrieksaanlevering: `src/lib/fabricage.ts` genereert per maatwerkregel
+uitslagen met buigaftrek (K-factor/radius in prijsmodel blok H), DXF R12
+per onderdeel (lagen SNIJDEN/GATEN/ZETLIJN_BOVEN/ZETLIJN_ONDER/INFO, voor
+nesting in Profirst) en buigtabellen met aanslagmaten (CSV + printbare
+werkbon, voor de Delem-kantbankbesturing); UI in
+`src/components/WorkOrderView.tsx`, bereikbaar via admin → Orders en
+admin → Calculatie. Beheerders zijn auth-users die in
 `cortemo_admins` staan; B2B-partners zijn auth-users gekoppeld via
 `cortemo_partners.user_id`. Thema: light is standaard, donker via de
 switcher (desktop in de menubalk, mobiel in het uitklapmenu).

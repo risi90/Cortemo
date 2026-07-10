@@ -39,6 +39,7 @@ import {
 } from '../lib/adminStore'
 import { InvoiceView } from '../components/InvoiceView'
 import { Card, EmptyRow, fieldSm, fmtDate } from './admin/ui'
+import type { CartItem } from '../lib/cart'
 
 type PortalTab = 'dashboard' | 'projecten' | 'bestellingen' | 'offertes' | 'instellingen'
 
@@ -138,6 +139,7 @@ function OrderDetail({
   onBack,
   onInvoice,
   onProject,
+  onReorder,
 }: {
   order: Order
   projects: Project[]
@@ -146,6 +148,7 @@ function OrderDetail({
   onBack: () => void
   onInvoice: () => void
   onProject: (projectId: string) => void
+  onReorder: () => void
 }) {
   return (
     <Card
@@ -200,6 +203,12 @@ function OrderDetail({
           <Printer size={12} strokeWidth={2} />{' '}
           {invoiceId ? 'Factuur ' + invoiceId : 'Factuur (proforma)'}
         </button>
+        <button
+          onClick={onReorder}
+          className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-[12px] font-semibold text-white hover:border-rust"
+        >
+          <Store size={12} strokeWidth={2} /> Opnieuw bestellen
+        </button>
         <label className="ml-auto flex items-center gap-2 text-[12px] text-white/55">
           Project
           <select
@@ -225,12 +234,28 @@ function OrderDetail({
 
 /* ---------- hoofdcomponent ---------- */
 
+/** Orderregels terugvertalen naar cart-items voor herbestellen. */
+function toCartItems(order: Order): CartItem[] {
+  return order.items.map((item) => ({
+    key: item.key,
+    productId: item.key.startsWith('cfg:') ? 'maatwerk' : item.key.split('|')[0],
+    name: item.name,
+    sub: 'Herbestelling ' + order.id,
+    config: item.config,
+    unitPrice: item.unitPrice,
+    weightKg: Math.max(2, Math.round(item.unitPrice / 3.5)),
+    qty: item.qty,
+  }))
+}
+
 export function B2BDashboard({
   onShop,
   onConfigure,
+  onReorder,
 }: {
   onShop: () => void
   onConfigure: () => void
+  onReorder: (items: CartItem[]) => void
 }) {
   const [partner, setPartner] = useState(getActivePartner)
   const [tab, setTab] = useState<PortalTab>('dashboard')
@@ -495,6 +520,7 @@ export function B2BDashboard({
                 invoiceId={invoices.find((i) => i.orderId === order.id)?.id}
                 onBack={() => setOrderId(null)}
                 onInvoice={() => setInvoice(order)}
+                onReorder={() => onReorder(toCartItems(order))}
                 onProject={(pid) => {
                   setOrderProject(order.id, pid)
                   setOrders(orders.map((o) => (o.id === order.id ? { ...o, projectId: pid } : o)))

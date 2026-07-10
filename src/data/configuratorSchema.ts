@@ -123,6 +123,17 @@ export const PRICING = {
     b2bGoud: 0.2,
     btwPct: 0.21,
   },
+  /**
+   * H. Fabricage — parameters voor de uitslagberekening (DXF's en
+   * buigtabellen). Kalibreer deze op de eigen kantbank: de buigaftrek
+   * per 90°-zetting = 2·(r+t) − (π/2)·(r + k·t), met r = radiusFactor·t.
+   */
+  fabricage: {
+    /** K-factor: positie van de neutrale lijn (0,40–0,45 bij luchtbuigen). */
+    kFactor: 0.44,
+    /** Binnenradius als factor × plaatdikte (≈ 1 bij V-opening 8×t). */
+    radiusFactor: 1,
+  },
 }
 
 export const CONFIG_TYPES: ConfigType[] = [

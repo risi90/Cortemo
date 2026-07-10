@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
-import { ArrowRight, Calculator } from 'lucide-react'
+import { ArrowRight, Calculator, Wrench } from 'lucide-react'
 import { euro } from '../../data/catalog'
 import { CONFIG_TYPES, configType, type ConfigTypeId, type DimensionKey } from '../../data/configuratorSchema'
 import { calcPrice, validateConfig, type ConfigState } from '../../lib/pricing'
-import { getPricing, type OfferLine } from '../../lib/adminStore'
+import { getPricing, type Order, type OfferLine } from '../../lib/adminStore'
+import { serializeCfg } from '../../lib/cfg'
+import { WorkOrderView } from '../../components/WorkOrderView'
 import { Card, fieldSm } from './ui'
 
 /**
@@ -24,6 +26,7 @@ export function CalculationAdmin({ onOffer }: { onOffer: (line: OfferLine) => vo
   const [options, setOptions] = useState<Record<string, boolean>>({})
   const [qty, setQty] = useState(1)
   const [discount, setDiscount] = useState(Math.round(getPricing().commercieel.b2bBasis * 100))
+  const [showWork, setShowWork] = useState(false)
 
   const pickType = (id: ConfigTypeId) => {
     setTypeId(id)
@@ -220,8 +223,15 @@ export function CalculationAdmin({ onOffer }: { onOffer: (line: OfferLine) => vo
                 />
               </label>
               <button
+                onClick={() => setShowWork(true)}
+                disabled={validation.errors.length > 0}
+                className="ml-auto flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-[13px] font-semibold text-white hover:border-rust disabled:opacity-50"
+              >
+                <Wrench size={14} strokeWidth={2} /> Werkbon &amp; DXF
+              </button>
+              <button
                 onClick={() => onOffer({ descr, qty, price: Math.round(price.total * 100) / 100 })}
-                className="ml-auto flex items-center gap-2 rounded-xl bg-rust px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-rust-deep"
+                className="flex items-center gap-2 rounded-xl bg-rust px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-rust-deep"
               >
                 Zet om naar offerte <ArrowRight size={14} strokeWidth={2} />
               </button>
@@ -233,9 +243,39 @@ export function CalculationAdmin({ onOffer }: { onOffer: (line: OfferLine) => vo
         <p className="text-[13px] leading-relaxed text-white/55">
           Deze calculator gebruikt exact dezelfde prijsengine als de klant-configurator (tarieven
           uit &ldquo;Configurator &amp; prijzen&rdquo;). De regel gaat met verkoopprijs de offerte
-          in; pas daar eventueel handmatig aan.
+          in; pas daar eventueel handmatig aan. Via &ldquo;Werkbon &amp; DXF&rdquo; controleer je
+          v&oacute;&oacute;r het offreren de uitslagen (Profirst) en buigtabellen (Delem).
         </p>
       </Card>
+      {showWork && (
+        <WorkOrderView
+          order={
+            {
+              id: 'VOORCALC',
+              date: new Date().toISOString(),
+              name: 'Voorcalculatie',
+              email: '',
+              city: '',
+              address: '',
+              items: [
+                {
+                  key: 'cfg:' + serializeCfg(state),
+                  name: descr,
+                  qty,
+                  unitPrice: price.total,
+                  config: [],
+                },
+              ],
+              total: price.total * qty,
+              discountCode: '',
+              discountAmount: 0,
+              projectId: '',
+              status: 'nieuw',
+            } as Order
+          }
+          onClose={() => setShowWork(false)}
+        />
+      )}
     </div>
   )
 }

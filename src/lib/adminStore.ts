@@ -411,6 +411,8 @@ export type Partner = {
   contact: string
   email: string
   discount: number
+  /** Betaaltermijn in dagen; 0 = vooruitbetaling, >0 = op rekening. */
+  terms: number
 }
 
 const PARTNERS_KEY = 'cortemo-partners'
@@ -423,6 +425,7 @@ const DEFAULT_PARTNERS: Partner[] = [
     contact: 'J. Timmer',
     email: 'jan@groenwerk.nl',
     discount: 15,
+    terms: 30,
   },
   {
     id: 'buro-buiten',
@@ -430,6 +433,7 @@ const DEFAULT_PARTNERS: Partner[] = [
     contact: 'S. de Vries',
     email: 'sanne@burobuiten.nl',
     discount: 12,
+    terms: 0,
   },
   {
     id: 'terra-nova',
@@ -437,6 +441,7 @@ const DEFAULT_PARTNERS: Partner[] = [
     contact: 'M. Kamps',
     email: 'inkoop@terranova.nl',
     discount: 18,
+    terms: 0,
   },
 ]
 
@@ -453,6 +458,7 @@ export async function fetchPartners(): Promise<Partner[]> {
         contact: r.contact,
         email: r.email,
         discount: Number(r.discount),
+        terms: Number(r.payment_terms ?? 0),
       }))
       write(PARTNERS_KEY, partners)
       return partners
@@ -469,6 +475,16 @@ export function setPartnerDiscount(id: string, discount: number): Partner[] {
   write(PARTNERS_KEY, next)
   fire(
     supabase?.from('cortemo_partners').update({ discount }).eq('id', id),
+  )
+  return next
+}
+
+/** Betaaltermijn (dagen); >0 laat de partner op rekening bestellen. */
+export function setPartnerTerms(id: string, terms: number): Partner[] {
+  const next = getPartners().map((p) => (p.id === id ? { ...p, terms } : p))
+  write(PARTNERS_KEY, next)
+  fire(
+    supabase?.from('cortemo_partners').update({ payment_terms: terms }).eq('id', id),
   )
   return next
 }
@@ -502,6 +518,7 @@ export async function signInPartner(
     contact: row.contact,
     email: row.email,
     discount: Number(row.discount),
+    terms: Number(row.payment_terms ?? 0),
   }
   write(ACTIVE_PARTNER_KEY, partner)
   return { partner }
@@ -1052,6 +1069,7 @@ export async function addPartner(
       contact: partner.contact,
       email: partner.email,
       discount: partner.discount,
+      payment_terms: partner.terms,
     })
     if (error) return { ok: false, error: error.message }
     return { ok: true }

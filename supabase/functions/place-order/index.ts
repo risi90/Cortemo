@@ -65,6 +65,34 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     )
 
+    // Ingelogde B2B-partner herkennen via het meegestuurde JWT. Dit is niet
+    // te vervalsen: alleen een door Supabase-auth ondertekende token levert
+    // een user op, en de partnerkoppeling (user_id) staat server-side.
+    let partner: { company: string; discount: number; terms: number } | null = null
+    const authHeader = req.headers.get('Authorization') ?? ''
+    if (authHeader.startsWith('Bearer ')) {
+      const userClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } },
+      )
+      const { data: userData } = await userClient.auth.getUser()
+      if (userData?.user) {
+        const { data: p } = await db
+          .from('cortemo_partners')
+          .select('company, discount, payment_terms')
+          .eq('user_id', userData.user.id)
+          .maybeSingle()
+        if (p) {
+          partner = {
+            company: String(p.company),
+            discount: Number(p.discount) || 0,
+            terms: Number(p.payment_terms) || 0,
+          }
+        }
+      }
+    }
+
     // actuele tarieven (admin-beheerd) over de bladdefaults
     const { data: settings } = await db
       .from('cortemo_settings')
@@ -127,9 +155,10 @@ Deno.serve(async (req: Request) => {
     }
     subtotal = Math.round(subtotal * 100) / 100
 
-    /* ---- kortingscode server-side valideren ---- */
-    let discountAmount = 0
-    let appliedCode = ''
+    /* ---- korting: code server-side valideren; partnerkorting en code
+       stapelen niet — de hoogste van de twee geldt ---- */
+    let codePct = 0
+    let codeLabel = ''
     if (typeof discountCode === 'string' && discountCode.trim()) {
       const { data: dc } = await db
         .from('cortemo_discounts')
@@ -138,10 +167,15 @@ Deno.serve(async (req: Request) => {
         .maybeSingle()
       const valid = dc && dc.active && (!dc.expires || dc.expires >= new Date().toISOString().slice(0, 10))
       if (!valid) return json(409, { error: 'De kortingscode is niet (meer) geldig.' })
-      appliedCode = dc.code
-      discountAmount = Math.round(subtotal * (Number(dc.percent) / 100) * 100) / 100
+      codePct = Number(dc.percent)
+      codeLabel = dc.code
     }
+    const partnerPct = partner?.discount ?? 0
+    const pct = Math.max(codePct, partnerPct)
+    const appliedCode = pct === 0 ? '' : partnerPct >= codePct ? `B2B ${partnerPct}%` : codeLabel
+    const discountAmount = Math.round(subtotal * (pct / 100) * 100) / 100
     const total = Math.round((subtotal - discountAmount) * 100) / 100
+    const onAccount = !!partner && partner.terms > 0
 
     /* ---- order opslaan (geverifieerd) ---- */
     const orderId = 'CM-' + String(Date.now()).slice(-6)
@@ -163,12 +197,15 @@ Deno.serve(async (req: Request) => {
       discount_amount: discountAmount,
       project_id: typeof projectId === 'string' && projectId ? projectId : null,
       status: 'nieuw',
-      payment_status: 'open',
+      payment_status: onAccount ? `op rekening (${partner!.terms} dgn)` : 'open',
       verified: true,
     })
     if (insErr) return json(500, { error: 'Order opslaan mislukte: ' + insErr.message })
 
-    const payment = await createPayment(orderId, total)
+    // op rekening = geen online betaling; anders de (stub-)provider
+    const payment = onAccount
+      ? { paymentUrl: null, paymentId: null }
+      : await createPayment(orderId, total)
     if (payment.paymentId) {
       await db.from('cortemo_orders').update({ payment_id: payment.paymentId }).eq('id', orderId)
     }
@@ -190,6 +227,9 @@ Deno.serve(async (req: Request) => {
         `  Totaal incl. btw — ${euro(total)}`,
         '',
         `Bezorgadres: ${address.trim()}${city ? ', ' + String(city).trim() : ''}`,
+        onAccount
+          ? `Betaling: op rekening (${partner!.terms} dagen) — de factuur volgt per mail.`
+          : '',
         'Ons pallettransport levert doorgaans binnen 5 tot 8 werkdagen; je ontvangt bericht zodra de bestelling in productie gaat.',
         '',
         'Met vriendelijke groet,',
@@ -210,7 +250,16 @@ Deno.serve(async (req: Request) => {
       mailed = !!res?.ok
     }
 
-    return json(200, { ok: true, orderId, total, paymentUrl: payment.paymentUrl, mailed })
+    return json(200, {
+      ok: true,
+      orderId,
+      total,
+      discountAmount,
+      discountLabel: appliedCode,
+      onAccount,
+      paymentUrl: payment.paymentUrl,
+      mailed,
+    })
   } catch (e) {
     return json(500, { error: String(e) })
   }

@@ -44,6 +44,7 @@ import {
   setOrderProject,
   setOrderStatus,
   setPartnerDiscount,
+  setPartnerTerms,
   signInAdmin,
   signOutAdmin,
   type Invoice,
@@ -52,6 +53,7 @@ import {
   type Project,
 } from '../lib/adminStore'
 import { InvoiceView } from '../components/InvoiceView'
+import { WorkOrderView } from '../components/WorkOrderView'
 import { PricingAdmin } from './admin/PricingAdmin'
 import { ProductsAdmin } from './admin/ProductsAdmin'
 import { CalculationAdmin } from './admin/CalculationAdmin'
@@ -190,6 +192,7 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
   const [invoiceDoc, setInvoiceDoc] = useState<Invoice | null>(null)
+  const [workOrder, setWorkOrder] = useState<Order | null>(null)
 
   useEffect(() => {
     setProjects(getProjects())
@@ -318,6 +321,14 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
                       <FileText size={12} strokeWidth={2} />{' '}
                       {invoiceFor(o.id) ? 'Factuur ' + invoiceFor(o.id)!.id : 'Maak factuur'}
                     </button>
+                    {o.items.some((i) => i.key?.startsWith('cfg:')) && (
+                      <button
+                        onClick={() => setWorkOrder(o)}
+                        className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-[12px] font-semibold text-white hover:border-rust"
+                      >
+                        <SlidersHorizontal size={12} strokeWidth={2} /> Werkbon &amp; DXF
+                      </button>
+                    )}
                     <select
                       value={o.projectId || ''}
                       onChange={(e) => setOrders(setOrderProject(o.id, e.target.value))}
@@ -368,6 +379,7 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
           }}
         />
       )}
+      {workOrder && <WorkOrderView order={workOrder} onClose={() => setWorkOrder(null)} />}
     </Card>
   )
 }
@@ -486,7 +498,7 @@ function DiscountCodes() {
 function Partners() {
   const [partners, setPartners] = useState(getPartners)
   const [adding, setAdding] = useState(false)
-  const [draft, setDraft] = useState({ company: '', contact: '', email: '', discount: 10 })
+  const [draft, setDraft] = useState({ company: '', contact: '', email: '', discount: 10, terms: 0 })
   const [error, setError] = useState('')
   useEffect(() => {
     void fetchPartners().then(setPartners)
@@ -505,7 +517,7 @@ function Partners() {
     }
     setPartners(await fetchPartners())
     setAdding(false)
-    setDraft({ company: '', contact: '', email: '', discount: 10 })
+    setDraft({ company: '', contact: '', email: '', discount: 10, terms: 0 })
   }
 
   return (
@@ -532,6 +544,11 @@ function Partners() {
               korting
               <input type="number" min={0} max={40} value={draft.discount} onChange={(e) => setDraft((d) => ({ ...d, discount: +e.target.value }))} className={fieldSm + ' w-20 text-right tabular-nums'} />
               %
+            </label>
+            <label className="flex items-center gap-2 text-[13px] text-white/70">
+              betaaltermijn
+              <input type="number" min={0} max={90} step={15} value={draft.terms} onChange={(e) => setDraft((d) => ({ ...d, terms: +e.target.value }))} className={fieldSm + ' w-20 text-right tabular-nums'} />
+              dagen (0 = vooruit)
             </label>
           </div>
           {error && <p className="text-[13px] font-medium text-rust">{error}</p>}
@@ -570,6 +587,20 @@ function Partners() {
                 className="w-16 rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-right text-[13px] font-semibold tabular-nums text-white outline-none focus:border-rust"
               />
               %
+            </label>
+            <label className="flex items-center gap-2 text-[12px] text-white/55">
+              termijn
+              <input
+                type="number"
+                min={0}
+                max={90}
+                step={15}
+                value={p.terms}
+                onChange={(e) => setPartners(setPartnerTerms(p.id, +e.target.value))}
+                aria-label={'Betaaltermijn van ' + p.company}
+                className="w-16 rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-right text-[13px] font-semibold tabular-nums text-white outline-none focus:border-rust"
+              />
+              dgn
             </label>
             <button
               onClick={() => {

@@ -315,7 +315,24 @@ export function App() {
         )}
         {nav.view === 'inspiratie' && <Inspiration onShop={openList} />}
         {nav.view === 'b2b' && (
-          <B2BDashboard onShop={() => openPage('root')} onConfigure={() => openPage('maatwerk')} />
+          <B2BDashboard
+            onShop={() => openPage('root')}
+            onConfigure={() => openPage('maatwerk')}
+            onReorder={(reorderItems) => {
+              // regels van een eerdere order terug in de winkelwagen
+              setItems((prev) => {
+                let next = [...prev]
+                for (const item of reorderItems) {
+                  const existing = next.find((i) => i.key === item.key)
+                  next = existing
+                    ? next.map((i) => (i.key === item.key ? { ...i, qty: i.qty + item.qty } : i))
+                    : [...next, item]
+                }
+                return next
+              })
+              openPage('checkout')
+            }}
+          />
         )}
         {nav.view === 'maatwerk' && (
           <Configurator onShop={() => openPage('root')} onAdd={addItem} />

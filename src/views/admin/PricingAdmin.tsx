@@ -102,6 +102,13 @@ const PARAM_GROUPS: [string, ParamDef[]][] = [
       { path: 'commercieel.btwPct', label: 'Btw-tarief', unit: '%', percent: true },
     ],
   ],
+  [
+    'H. Fabricage (uitslagen voor Profirst & Delem)',
+    [
+      { path: 'fabricage.kFactor', label: 'K-factor uitslagberekening', unit: 'factor', hint: '0,40–0,45 bij luchtbuigen; kalibreer op de kantbank' },
+      { path: 'fabricage.radiusFactor', label: 'Binnenradius (× plaatdikte)', unit: '× t', hint: '≈ 1 bij V-opening 8×t' },
+    ],
+  ],
 ]
 
 function getPath(obj: unknown, path: string): number {
