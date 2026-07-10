@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { ImageUp, Pencil, Plus, Trash2 } from 'lucide-react'
 import { euro, GROUPS, hydrateCatalog, PRODUCTS } from '../../data/catalog'
 import {
   deleteProduct,
@@ -7,6 +7,7 @@ import {
   hasBackend,
   insertProduct,
   updateProductFull,
+  uploadProductImage,
   type DbProduct,
 } from '../../lib/adminStore'
 import { Card, EmptyRow, fieldSm, PrimaryButton } from './ui'
@@ -109,6 +110,17 @@ function Editor({
   const [d, setD] = useState<Draft>(initial)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
+
+  const upload = async (file: File | undefined) => {
+    if (!file) return
+    setUploading(true)
+    setError('')
+    const result = await uploadProductImage(file)
+    setUploading(false)
+    if (result.url) set('img', result.url)
+    else setError(result.error || 'Upload mislukt.')
+  }
   const isNew = !initial.id
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setD((prev) => ({ ...prev, [key]: value }))
@@ -174,8 +186,26 @@ function Editor({
           <input type="number" value={d.price} onChange={(e) => set('price', +e.target.value)} className={fieldSm + ' w-full tabular-nums'} />
         </label>
         <label className="block">
-          <span className="mb-1 block text-[12px] font-semibold text-white/70">Afbeeldings-URL</span>
-          <input type="text" value={d.img} placeholder="/img/naam.jpg" onChange={(e) => set('img', e.target.value)} className={fieldSm + ' w-full'} />
+          <span className="mb-1 block text-[12px] font-semibold text-white/70">Productfoto</span>
+          <span className="flex items-center gap-2">
+            {d.img && (
+              <img src={d.img} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+            )}
+            <input type="text" value={d.img} placeholder="/img/naam.jpg of upload →" onChange={(e) => set('img', e.target.value)} className={fieldSm + ' min-w-0 flex-1'} />
+            <span className="relative shrink-0">
+              <input
+                type="file"
+                accept="image/*"
+                aria-label="Upload productfoto"
+                disabled={uploading}
+                onChange={(e) => void upload(e.target.files?.[0])}
+                className="absolute inset-0 cursor-pointer opacity-0"
+              />
+              <span className={'flex h-9 items-center gap-1.5 rounded-lg bg-white/10 px-3 text-[12px] font-semibold text-white/70 ' + (uploading ? 'opacity-50' : 'hover:bg-white/15 hover:text-white')}>
+                <ImageUp size={13} strokeWidth={2} /> {uploading ? 'Bezig…' : 'Upload'}
+              </span>
+            </span>
+          </span>
         </label>
         <label className="block">
           <span className="mb-1 block text-[12px] font-semibold text-white/70">Levertijd</span>

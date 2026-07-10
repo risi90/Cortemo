@@ -75,6 +75,22 @@ export async function updateProduct(
   return !error
 }
 
+/** Upload een productfoto naar Supabase Storage en geef de publieke URL terug. */
+export async function uploadProductImage(
+  file: File,
+): Promise<{ url?: string; error?: string }> {
+  if (!supabase) return { error: 'Geen backend gekoppeld.' }
+  const safe = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, '-')
+  const path = 'products/' + Date.now() + '-' + safe
+  const { error } = await supabase.storage.from('cortemo-media').upload(path, file, {
+    cacheControl: '31536000',
+    contentType: file.type || 'image/jpeg',
+  })
+  if (error) return { error: error.message }
+  const { data } = supabase.storage.from('cortemo-media').getPublicUrl(path)
+  return { url: data.publicUrl }
+}
+
 /* ---------- orders ---------- */
 
 export type OrderStatus = 'nieuw' | 'in productie' | 'verzonden' | 'geannuleerd'
