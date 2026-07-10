@@ -43,8 +43,11 @@ export function Checkout({
       name: form.name,
       email: form.email,
       city: form.city,
+      address: form.street + ', ' + form.zip + ' ' + form.city,
       items: items.map(({ name, qty, unitPrice, config }) => ({ name, qty, unitPrice, config })),
       total,
+      discountCode: '',
+      discountAmount: 0,
       status: 'nieuw',
     })
     setPlaced(id)

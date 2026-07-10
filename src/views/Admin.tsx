@@ -36,6 +36,7 @@ import {
   resetPricing,
   savePricing,
   sendMailing,
+  sendStatusMail,
   setOrderStatus,
   setPartnerDiscount,
   signInAdmin,
@@ -114,6 +115,15 @@ function Dashboard({ orders }: { orders: Order[] }) {
 }
 
 function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]) => void }) {
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [mailState, setMailState] = useState<Record<string, string>>({})
+
+  const mailStatus = async (o: Order) => {
+    setMailState((s) => ({ ...s, [o.id]: 'bezig' }))
+    const result = await sendStatusMail(o)
+    setMailState((s) => ({ ...s, [o.id]: result.ok ? 'verstuurd' : result.error || 'mislukt' }))
+  }
+
   return (
     <Card title="Orders" aside={<span className="text-[12px] text-white/40">{orders.length} totaal</span>}>
       {orders.length === 0 ? (
@@ -121,31 +131,92 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
       ) : (
         <ul className="divide-y divide-white/5">
           {orders.map((o) => (
-            <li key={o.id} className="grid gap-2 py-4 md:grid-cols-[100px_1.4fr_1fr_110px_150px] md:items-center md:gap-3">
-              <span className="text-[13px] font-bold">{o.id}</span>
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] font-semibold">{o.name}</span>
-                <span className="block truncate text-[11px] text-white/45">
-                  {o.email} · {o.city}
+            <li key={o.id} className="py-4">
+              <div className="grid gap-2 md:grid-cols-[100px_1.4fr_1fr_110px_150px] md:items-center md:gap-3">
+                <button
+                  onClick={() => setOpenId(openId === o.id ? null : o.id)}
+                  className="text-left text-[13px] font-bold text-white transition-colors hover:text-rust"
+                >
+                  {o.id}
+                </button>
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-semibold">{o.name}</span>
+                  <span className="block truncate text-[11px] text-white/45">
+                    {o.email} · {o.city}
+                  </span>
                 </span>
-              </span>
-              <span className="text-[12px] text-white/50">
-                {fmtDate(o.date)} · {o.items.reduce((s, i) => s + i.qty, 0)} artikelen
-              </span>
-              <span className="text-[13px] font-bold tabular-nums md:text-right">{euro(o.total)}</span>
-              <select
-                value={o.status}
-                onChange={(e) => setOrders(setOrderStatus(o.id, e.target.value as OrderStatus))}
-                aria-label={'Status van order ' + o.id}
-                className="rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-[12px] font-semibold text-white outline-none focus:border-rust"
-                style={{ colorScheme: 'dark' }}
-              >
-                {ORDER_STATUSES.map((s) => (
-                  <option key={s} value={s} style={{ backgroundColor: '#14191E' }}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+                <span className="text-[12px] text-white/50">
+                  {fmtDate(o.date)} · {o.items.reduce((s, i) => s + i.qty, 0)} artikelen
+                </span>
+                <span className="text-[13px] font-bold tabular-nums md:text-right">{euro(o.total)}</span>
+                <select
+                  value={o.status}
+                  onChange={(e) => setOrders(setOrderStatus(o.id, e.target.value as OrderStatus))}
+                  aria-label={'Status van order ' + o.id}
+                  className="rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-[12px] font-semibold text-white outline-none focus:border-rust"
+                  style={{ colorScheme: 'dark' }}
+                >
+                  {ORDER_STATUSES.map((s) => (
+                    <option key={s} value={s} style={{ backgroundColor: '#14191E' }}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {openId === o.id && (
+                <div className="mt-3 space-y-3 rounded-xl bg-white/5 p-4">
+                  <div className="grid gap-3 text-[12px] text-white/60 sm:grid-cols-2">
+                    <div>
+                      <span className="block font-semibold text-white/80">Bezorgadres</span>
+                      {o.address || o.city || '—'}
+                    </div>
+                    <div>
+                      <span className="block font-semibold text-white/80">Contact</span>
+                      {o.name} · {o.email}
+                    </div>
+                  </div>
+                  <ul className="divide-y divide-white/5 rounded-lg bg-white/5 px-3">
+                    {o.items.map((item, i) => (
+                      <li key={i} className="py-2.5">
+                        <div className="flex items-baseline justify-between gap-3 text-[13px]">
+                          <span className="font-semibold">
+                            {item.qty} × {item.name}
+                          </span>
+                          <span className="font-bold tabular-nums">{euro(item.unitPrice * item.qty)}</span>
+                        </div>
+                        {item.config?.length > 0 && (
+                          <div className="mt-0.5 text-[11px] text-white/45">{item.config.join(' · ')}</div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  {o.discountCode && (
+                    <p className="text-[12px] text-white/50">
+                      Kortingscode {o.discountCode}: −{euro(o.discountAmount)}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={() => void mailStatus(o)}
+                      disabled={mailState[o.id] === 'bezig'}
+                      className="flex items-center gap-1.5 rounded-lg bg-rust px-3 py-2 text-[12px] font-semibold text-white hover:bg-rust-deep disabled:opacity-60"
+                    >
+                      <Send size={12} strokeWidth={2} /> Mail status &ldquo;{o.status}&rdquo; naar klant
+                    </button>
+                    {mailState[o.id] && mailState[o.id] !== 'bezig' && (
+                      <span
+                        className={
+                          'text-[12px] font-semibold ' +
+                          (mailState[o.id] === 'verstuurd' ? 'text-ok' : 'text-rust')
+                        }
+                      >
+                        {mailState[o.id]}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>

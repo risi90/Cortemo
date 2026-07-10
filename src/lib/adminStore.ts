@@ -83,8 +83,11 @@ export type Order = {
   name: string
   email: string
   city: string
+  address: string
   items: Pick<CartItem, 'name' | 'qty' | 'unitPrice' | 'config'>[]
   total: number
+  discountCode: string
+  discountAmount: number
   status: OrderStatus
 }
 
@@ -97,13 +100,16 @@ export function saveOrder(order: Order): void {
   // fire-and-forget naar de database; de bestelling is lokaal al geborgd
   fire(
     supabase?.from('cortemo_orders').insert({
-    id: order.id,
-    name: order.name,
-    email: order.email,
-    city: order.city,
-    items: order.items,
-    total: order.total,
-    status: order.status,
+      id: order.id,
+      name: order.name,
+      email: order.email,
+      city: order.city,
+      address: order.address,
+      items: order.items,
+      total: order.total,
+      discount_code: order.discountCode,
+      discount_amount: order.discountAmount,
+      status: order.status,
     }),
   )
 }
@@ -122,8 +128,11 @@ export async function fetchOrders(): Promise<Order[]> {
         name: r.name,
         email: r.email,
         city: r.city,
+        address: r.address ?? '',
         items: r.items,
         total: Number(r.total),
+        discountCode: r.discount_code ?? '',
+        discountAmount: Number(r.discount_amount ?? 0),
         status: r.status as OrderStatus,
       }))
       write(ORDERS_KEY, orders)
@@ -143,6 +152,24 @@ export function setOrderStatus(id: string, status: OrderStatus): Order[] {
     supabase?.from('cortemo_orders').update({ status }).eq('id', id),
   )
   return next
+}
+
+/** Mailt de klant over de huidige orderstatus via de send-status functie. */
+export async function sendStatusMail(order: Order): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Geen backend gekoppeld.' }
+  const { data, error } = await supabase.functions.invoke('send-status', {
+    body: { orderId: order.id, name: order.name, email: order.email, status: order.status },
+  })
+  let message = data?.error || error?.message
+  if (error && 'context' in error) {
+    try {
+      message = (await (error as { context: Response }).context.json()).error
+    } catch {
+      /* houd de generieke melding */
+    }
+  }
+  if (error || data?.error) return { ok: false, error: String(message) }
+  return { ok: true }
 }
 
 /* ---------- offerte-aanvragen ---------- */
