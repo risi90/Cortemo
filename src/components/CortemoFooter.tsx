@@ -15,7 +15,7 @@ const FOOTER_COLS: FooterCol[] = [
     title: 'Bedrijf',
     links: [
       ['Ons verhaal', '#'],
-      ['B2B white label portal', '#'],
+      ['B2B white label portal', '?page=b2b'],
       ['Contact', '#'],
       ['Werken bij Cortemo', '#'],
     ],

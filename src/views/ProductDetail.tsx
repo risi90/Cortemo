@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Check, ChevronDown, ChevronLeft, Ruler, ShoppingCart } from 'lucide-react'
 import { euro, GROUP_IMG, GROUPS, PRODUCTS } from '../data/catalog'
 import { ProductImage } from '../components/ProductImage'
+import type { CartItem } from '../lib/cart'
 
 export function ProductDetail({
   productId,
@@ -10,7 +11,7 @@ export function ProductDetail({
 }: {
   productId: string
   onBack: () => void
-  onAdd: () => void
+  onAdd: (item: Omit<CartItem, 'qty'>) => void
 }) {
   const p = PRODUCTS.find((x) => x.id === productId)!
   const [variant, setVariant] = useState(0)
@@ -28,13 +29,24 @@ export function ProductDetail({
     p.options.reduce((s, [label, price]) => s + (opts[label] ? price : 0), 0)
 
   const add = () => {
-    onAdd()
+    const selected = p.options.filter(([label]) => opts[label]).map(([label]) => label)
+    onAdd({
+      key: [p.id, variant, ...selected].join('|'),
+      productId: p.id,
+      name: p.name,
+      sub: p.sub,
+      group: p.group,
+      config: [p.variants[variant][0] + ' · 3 mm corten', ...selected],
+      unitPrice: total,
+      // Ruwe schatting op basis van de prijs; volstaat voor de logistiek-indicatie.
+      weightKg: Math.max(2, Math.round(total / 3.5)),
+    })
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <button
         onClick={onBack}
         className="flex items-center gap-1.5 text-[13px] font-semibold text-white/50 transition-colors hover:text-white"
@@ -46,7 +58,7 @@ export function ProductDetail({
       <div className="mt-6 flex flex-col gap-8 lg:flex-row">
         {/* foto */}
         <div className="min-w-0 flex-1">
-          <div className="h-[420px] lg:h-[520px]">
+          <div className="h-[300px] sm:h-[420px] lg:h-[520px]">
             <ProductImage src={GROUP_IMG[p.group]} label={p.name} radius={20} />
           </div>
         </div>
@@ -68,7 +80,7 @@ export function ProductDetail({
                 <select
                   value={variant}
                   onChange={(e) => setVariant(+e.target.value)}
-                  className="w-full appearance-none rounded-xl border border-white/15 bg-white/5 px-4 py-3 pr-10 text-[13px] font-medium text-white outline-none transition focus:border-rust"
+                  className="w-full appearance-none rounded-xl border border-white/15 bg-white/5 px-4 py-3 pr-10 text-[16px] font-medium text-white outline-none transition focus:border-rust sm:text-[13px]"
                   style={{ colorScheme: 'dark' }}
                 >
                   {p.variants.map(([label, extra], i) => (
@@ -139,12 +151,12 @@ export function ProductDetail({
           {/* upsell naar configurator */}
           <a
             href="#"
-            className="liquid-glass mt-4 flex items-center gap-4 rounded-2xl p-5 text-white transition-all hover:-translate-y-0.5"
+            className="liquid-glass mt-4 flex flex-wrap items-center gap-4 rounded-2xl p-5 text-white transition-all hover:-translate-y-0.5"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-rust">
               <Ruler size={18} strokeWidth={2} />
             </span>
-            <span className="flex-1">
+            <span className="min-w-0 flex-1 basis-48">
               <span className="block text-[14px] font-semibold">
                 Zit jouw perfecte maat er niet tussen?
               </span>

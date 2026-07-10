@@ -27,7 +27,7 @@ export function ProductList({
   )
 
   return (
-    <div className="mx-auto max-w-6xl px-6 pb-20 pt-10">
+    <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pb-20 sm:pt-10">
       <button
         onClick={onBack}
         className="flex items-center gap-1.5 text-[13px] font-semibold text-white/50 transition-colors hover:text-white"
@@ -71,7 +71,7 @@ export function ProductList({
               <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
                 <ProductImage src={GROUP_IMG[p.group]} label={p.name} radius={0} />
               </div>
-              <span className="pointer-events-none absolute bottom-4 right-4 rounded-full bg-white/90 px-4 py-2 text-[12px] font-semibold text-ink opacity-0 shadow-sm transition-opacity duration-300 group-hover:opacity-100">
+              <span className="pointer-events-none absolute bottom-4 right-4 rounded-full bg-white/90 px-4 py-2 text-[12px] font-semibold text-ink shadow-sm transition-opacity duration-300 sm:opacity-0 sm:group-hover:opacity-100">
                 Configureer &rarr;
               </span>
             </div>

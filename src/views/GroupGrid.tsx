@@ -61,22 +61,22 @@ function Cell({
 
 export function GroupGrid({ onPick }: { onPick: (id: GroupId) => void }) {
   return (
-    <div className="mx-auto max-w-6xl px-6 pb-20 pt-16 md:pt-24">
+    <div className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-16 md:pt-24">
       <p className="text-[12px] font-semibold uppercase tracking-[.2em] text-rust">
         Cortemo Collecties
       </p>
-      <h1 className="serif mt-5 max-w-3xl text-[40px] leading-[1.0] tracking-[-.03em] text-white md:text-[56px]">
+      <h1 className="serif mt-5 max-w-3xl text-[34px] leading-[1.0] tracking-[-.03em] text-white sm:text-[40px] md:text-[56px]">
         Ontdek onze <em className="text-white/50">collecties.</em>
       </h1>
       <p className="mt-5 max-w-md text-[15px] leading-relaxed text-white/60">
         Standaard formaten, vaste prijzen, geleverd binnen acht werkdagen. Alles naadloos gelast uit
         3 mm cortenstaal.
       </p>
-      <div className="mt-14 grid auto-rows-[220px] grid-cols-1 gap-4 md:grid-cols-3">
-        <Cell g={GROUPS[0]} extra="md:col-span-2 md:row-span-2" big onPick={onPick} />
+      <div className="mt-10 grid auto-rows-[200px] grid-cols-1 gap-4 sm:mt-14 sm:auto-rows-[220px] sm:grid-cols-2 md:grid-cols-3">
+        <Cell g={GROUPS[0]} extra="sm:col-span-2 md:row-span-2" big onPick={onPick} />
         <Cell g={GROUPS[1]} extra="" big={false} onPick={onPick} />
         <Cell g={GROUPS[2]} extra="" big={false} onPick={onPick} />
-        <Cell g={GROUPS[3]} extra="md:col-span-3" big onPick={onPick} />
+        <Cell g={GROUPS[3]} extra="sm:col-span-2 md:col-span-3" big onPick={onPick} />
       </div>
     </div>
   )
