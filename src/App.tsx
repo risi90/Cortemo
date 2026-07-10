@@ -211,7 +211,9 @@ export function App() {
         {nav.view === 'b2b' && (
           <B2BDashboard onShop={() => openPage('root')} onConfigure={() => openPage('maatwerk')} />
         )}
-        {nav.view === 'maatwerk' && <Configurator onShop={() => openPage('root')} />}
+        {nav.view === 'maatwerk' && (
+          <Configurator onShop={() => openPage('root')} onAdd={addItem} />
+        )}
         {nav.view === 'checkout' && (
           <Checkout items={items} onClear={() => setItems([])} onShop={() => openPage('root')} />
         )}
