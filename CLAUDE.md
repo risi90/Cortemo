@@ -28,11 +28,18 @@ ambientCG) voor kleur, normal en roughness. Configuraties worden
 geserialiseerd in het `cfg` URL-param (deelbaar/hervatbaar).
 
 Admin (`?page=admin`, ook via footerlink "Beheer"): `src/views/Admin.tsx`
-met datalaag in `src/lib/adminStore.ts`. Alles draait nu op localStorage
-(demo); elke functie is zo opgezet dat hij later door een API-call
-vervangen wordt. Tarieven die de beheerder daar opslaat overschrijven de
-schema-defaults live via `getPricing()`. Orders komen uit de checkout,
-offertes uit het maatwerkformulier.
+met datalaag in `src/lib/adminStore.ts`.
+
+Backend: Supabase-project "Cortemo" (gulepwtnlmjpjwkatfiv, eu-central-1).
+`src/lib/supabase.ts` bevat de publieke URL + publishable key (veilig in
+clientcode; RLS beschermt alles). De adminStore is dual-mode: Supabase-
+first met localStorage-fallback. Schema/RLS/seed staat in
+`supabase/migrations/0001_cortemo_init.sql`; de mailingfunctie (Resend) in
+`supabase/functions/send-mailing/` — die vereist de secrets RESEND_API_KEY
+en MAIL_FROM in het Supabase-dashboard. Beheerders zijn auth-users die in
+`cortemo_admins` staan; B2B-partners zijn auth-users gekoppeld via
+`cortemo_partners.user_id`. Thema: light is standaard, donker via de
+switcher (desktop in de menubalk, mobiel in het uitklapmenu).
 Navigatie is state-based in `src/App.tsx` (met URL-params `cat`, `product`,
 `page`). Thema (donker standaard, licht via toggle) wordt gescoped op
 `.page-shell`/`.cortemo-footer` in `src/index.css`; nieuwe UI moet in beide

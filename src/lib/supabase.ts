@@ -10,8 +10,13 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
  *   VITE_SUPABASE_KEY=<publishable key>
  * en draai supabase/migrations/0001_cortemo_init.sql in het project.
  */
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const key = import.meta.env.VITE_SUPABASE_KEY as string | undefined
+// Defaults van het Cortemo-productieproject. De publishable key is per
+// ontwerp veilig om in clientcode te staan: alle toegang loopt via RLS.
+const DEFAULT_URL = 'https://gulepwtnlmjpjwkatfiv.supabase.co'
+const DEFAULT_KEY = 'sb_publishable_Cnn-Cl-Rb8sdmoLJ9vobuQ_2jG10KP4'
+
+const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || DEFAULT_URL
+const key = (import.meta.env.VITE_SUPABASE_KEY as string | undefined) || DEFAULT_KEY
 
 export const supabase: SupabaseClient | null = url && key ? createClient(url, key) : null
 
