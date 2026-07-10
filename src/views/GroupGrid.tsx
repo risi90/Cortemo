@@ -79,9 +79,10 @@ export function GroupGrid({
   onConfigurator: () => void
 }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6 sm:pb-20 sm:pt-8">
-      {/* video-hero met het configurator-blok over de achtergrondvideo */}
-      <section className="on-media relative -mt-24 overflow-hidden rounded-3xl sm:-mt-28 md:-mt-32">
+    <div>
+      {/* video-hero, full-bleed over de volledige breedte en hoogte van de
+          hero-sectie; het configurator-blok ligt over de achtergrondvideo */}
+      <section className="on-media relative -mt-24 flex min-h-[72vh] flex-col justify-end overflow-hidden rounded-t-2xl sm:-mt-28 sm:rounded-t-3xl md:-mt-32 md:min-h-[82vh]">
         <video
           className="absolute inset-0 h-full w-full object-cover"
           poster="/img/plantenbak.webp"
@@ -102,8 +103,8 @@ export function GroupGrid({
           <source src="/video/hero.webm" type="video/webm" />
           <source src="/video/hero.mp4" type="video/mp4" />
         </video>
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/25" />
-        <div className="relative z-10 px-6 pb-14 pt-36 sm:px-10 sm:pb-16 sm:pt-44 md:px-14 md:pt-52 lg:pb-20">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/20" />
+        <div className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-14 pt-40 sm:px-6 sm:pb-16 lg:pb-20">
           <p className="text-[12px] font-semibold uppercase tracking-[.2em] text-white/70">
             Maatwerk cortenstaal
           </p>
@@ -131,6 +132,7 @@ export function GroupGrid({
         </div>
       </section>
 
+      <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 sm:pb-20">
       <div id="collecties" className="pt-12 sm:pt-16 md:pt-20">
         <p className="text-[12px] font-semibold uppercase tracking-[.2em] text-rust">
           Cortemo Collecties
@@ -148,6 +150,7 @@ export function GroupGrid({
         <Cell g={GROUPS[1]} extra="" big={false} onPick={onPick} />
         <Cell g={GROUPS[2]} extra="" big={false} onPick={onPick} />
         <Cell g={GROUPS[3]} extra="sm:col-span-2 md:col-span-3" big onPick={onPick} />
+      </div>
       </div>
     </div>
   )
