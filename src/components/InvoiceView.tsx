@@ -92,7 +92,8 @@ export function InvoiceView({
           </div>
         </div>
 
-        <table className="mt-8 w-full text-[13px]">
+        <div className="overflow-x-auto">
+        <table className="mt-8 w-full min-w-[400px] text-[13px]">
           <thead>
             <tr className="border-b-2 border-[#1F2937] text-left text-[11px] font-semibold uppercase tracking-[.08em] text-[#6B7280]">
               <th className="pb-2">Omschrijving</th>
@@ -122,6 +123,7 @@ export function InvoiceView({
             })}
           </tbody>
         </table>
+        </div>
 
         <div className="mt-4 ml-auto w-64 space-y-1 text-[13px]">
           {order.discountAmount > 0 && (

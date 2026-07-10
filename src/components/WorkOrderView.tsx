@@ -133,7 +133,8 @@ export function WorkOrderView({ order, onClose }: { order: Order; onClose: () =>
                 )}
 
                 {part.zetlijnen.length > 0 && (
-                  <table className="mt-2 w-full text-[12px]">
+                  <div className="overflow-x-auto">
+                  <table className="mt-2 w-full min-w-[430px] text-[12px]">
                     <thead>
                       <tr className="border-b border-[#E5E7EB] text-left text-[10px] font-semibold uppercase tracking-[.08em] text-[#6B7280]">
                         <th className="py-1 pr-2">#</th>
@@ -157,6 +158,7 @@ export function WorkOrderView({ order, onClose }: { order: Order; onClose: () =>
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 )}
 
                 {part.notities.map((n, i) => (

@@ -82,7 +82,7 @@ export function CalculationAdmin({ onOffer }: { onOffer: (line: OfferLine) => vo
             </div>
             <div className="grid grid-cols-3 gap-2">
               {type.dimensions.map((spec) => (
-                <label key={spec.key} className="block">
+                <label key={spec.key} className="block min-w-0">
                   <span className="mb-1 block text-[12px] font-semibold text-white/70">
                     {spec.label}
                   </span>
@@ -97,7 +97,7 @@ export function CalculationAdmin({ onOffer }: { onOffer: (line: OfferLine) => vo
                         [spec.key]: Math.min(spec.max, Math.max(spec.min, +e.target.value || spec.min)),
                       }))
                     }
-                    className={fieldSm + ' w-full tabular-nums'}
+                    className={fieldSm + ' w-full min-w-0 tabular-nums'}
                   />
                 </label>
               ))}
@@ -211,7 +211,7 @@ export function CalculationAdmin({ onOffer }: { onOffer: (line: OfferLine) => vo
               </label>
               <span className="font-bold tabular-nums text-rust">{euro(partnerPrice)}</span>
             </div>
-            <div className="flex items-center gap-2 pt-2">
+            <div className="flex flex-wrap items-center gap-2 pt-2">
               <label className="flex items-center gap-2 text-white/70">
                 Aantal
                 <input
