@@ -21,6 +21,41 @@ body {
   font-weight: 400;
 }
 
+/* ============================================================
+   WCAG 2.1/2.2 AA-contrast
+   - Knoppen: wit op #D95A2B haalt 3,9:1; #C14A19 haalt 4,9:1.
+   - Accenttekst: #D95A2B haalt op licht 3,3:1; per thema een
+     donkerdere (licht) of lichtere (donker) variant.
+   - .on-light: witte vlakken (navbar, mini-configurator) die in
+     beide thema's licht blijven en dus altijd de donkere accent
+     nodig hebben.
+   ============================================================ */
+.bg-rust {
+  background-color: #c14a19;
+}
+.hover\:bg-rust-deep:hover {
+  background-color: #a93f13;
+}
+.page-shell .text-rust,
+.cortemo-footer .text-rust {
+  color: #e06a35;
+}
+[data-theme='light'] .page-shell .text-rust,
+[data-theme='light'] .cortemo-footer .text-rust,
+.page-shell .on-light .text-rust,
+.cortemo-footer .on-light .text-rust {
+  color: #b4430e;
+}
+
+/* zichtbare focus voor toetsenbordgebruik (2.4.7, 2.4.11) */
+:focus-visible {
+  outline: 2px solid #e06a35;
+  outline-offset: 2px;
+}
+[data-theme='light'] :focus-visible {
+  outline-color: #b4430e;
+}
+
 .liquid-glass {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -63,20 +98,25 @@ body {
 [data-theme='light'] .page-shell .text-white\/90,
 [data-theme='light'] .page-shell .text-white\/85,
 [data-theme='light'] .page-shell .text-white\/80,
+[data-theme='light'] .page-shell .text-white\/75,
 [data-theme='light'] .page-shell .text-white\/70,
 [data-theme='light'] .cortemo-footer .text-white\/70 {
   color: #374151;
 }
+[data-theme='light'] .page-shell .text-white\/65,
 [data-theme='light'] .page-shell .text-white\/60,
 [data-theme='light'] .page-shell .text-white\/55,
 [data-theme='light'] .page-shell .text-white\/50,
 [data-theme='light'] .cortemo-footer .text-white\/50 {
   color: #4b5563;
 }
+/* #5d6570 haalt 5,0:1 op de lichtste achtergrondtint (#EDE8DF) */
+[data-theme='light'] .page-shell .text-white\/45,
 [data-theme='light'] .page-shell .text-white\/40,
 [data-theme='light'] .page-shell .text-white\/35,
+[data-theme='light'] .cortemo-footer .text-white\/45,
 [data-theme='light'] .cortemo-footer .text-white\/40 {
-  color: #6b7280;
+  color: #5d6570;
 }
 [data-theme='light'] .page-shell .hover\:text-white:hover,
 [data-theme='light'] .cortemo-footer .hover\:text-white:hover {

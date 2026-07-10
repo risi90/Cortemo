@@ -304,7 +304,7 @@ export function MiniConfigurator({
 
   return (
     <div className="w-full shrink-0 lg:w-[min(480px,45%)]">
-      <div className="flex flex-col gap-3 overflow-hidden rounded-2xl bg-gradient-to-b from-white via-white to-rust-ghost p-4 shadow-2xl ring-1 ring-white/60 backdrop-blur-xl sm:rounded-3xl sm:p-5">
+      <div className="on-light flex flex-col gap-3 overflow-hidden rounded-2xl bg-gradient-to-b from-white via-white to-rust-ghost p-4 shadow-2xl ring-1 ring-white/60 backdrop-blur-xl sm:rounded-3xl sm:p-5">
         <h2 className="text-lg font-semibold tracking-tight text-ink sm:text-xl">
           Stel je product samen
         </h2>
@@ -370,7 +370,7 @@ export function MiniConfigurator({
 
         <button
           onClick={() => onStart(product.cfgType)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rust to-rust-deep py-3 text-sm font-semibold text-white shadow-lg shadow-rust/30 transition-all hover:brightness-110"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-rust py-3 text-sm font-semibold text-white shadow-lg shadow-rust/30 transition-all hover:bg-rust-deep"
         >
           {isAanvraag
             ? product.model === 'dxf'

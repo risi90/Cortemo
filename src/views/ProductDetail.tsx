@@ -83,6 +83,7 @@ export function ProductDetail({
                 <select
                   value={variant}
                   onChange={(e) => setVariant(+e.target.value)}
+                  aria-label="Kies afmeting"
                   className="w-full appearance-none rounded-xl border border-white/15 bg-white/5 px-4 py-3 pr-10 text-[16px] font-medium text-white outline-none transition focus:border-rust sm:text-[13px]"
                   style={{ colorScheme: 'dark' }}
                 >

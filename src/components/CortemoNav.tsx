@@ -47,10 +47,10 @@ export function CortemoNav({
   const [open, setOpen] = useState(false)
 
   const links: NavLink[] = [
-    { label: 'Assortiment', href: '#', onClick: onHome },
-    { label: 'Inspiratie', href: '#', onClick: onInspiration },
-    { label: 'Zakelijk', href: '?page=b2b', onClick: onB2B },
-    { label: 'Ons verhaal', href: '?page=verhaal', onClick: onStory },
+    { label: 'Assortiment', href: '/', onClick: onHome },
+    { label: 'Inspiratie', href: '/inspiratie', onClick: onInspiration },
+    { label: 'Zakelijk', href: '/zakelijk', onClick: onB2B },
+    { label: 'Ons verhaal', href: '/verhaal', onClick: onStory },
   ]
 
   const follow = (l: NavLink) => (e: React.MouseEvent) => {
@@ -77,7 +77,7 @@ export function CortemoNav({
   )
 
   return (
-    <nav className="relative flex w-full items-center gap-2 self-start rounded-2xl bg-white/60 py-2 pl-2 pr-2 shadow-sm backdrop-blur-md md:w-auto md:gap-6 md:pl-4">
+    <nav className="on-light relative flex w-full items-center gap-2 self-start rounded-2xl bg-white/60 py-2 pl-2 pr-2 shadow-sm backdrop-blur-md md:w-auto md:gap-6 md:pl-4">
       {/* hamburger, op mobiel en smalle tablets */}
       <button
         onClick={() => setOpen((o) => !o)}

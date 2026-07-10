@@ -170,10 +170,7 @@ export default function Configurator3D({
   // configuratie in de URL bijhouden zodat delen/verversen werkt
   useEffect(() => {
     const id = setTimeout(() => {
-      const qs = new URLSearchParams(location.search)
-      qs.set('page', 'maatwerk')
-      qs.set('cfg', serializeCfg(state))
-      history.replaceState(null, '', '?' + qs.toString())
+      history.replaceState(null, '', '/maatwerk?cfg=' + serializeCfg(state))
     }, 350)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps

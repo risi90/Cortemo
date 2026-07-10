@@ -62,6 +62,9 @@ export function CartDrawer({
         role="dialog"
         aria-label="Winkelwagen"
         aria-hidden={!open}
+        // inert houdt de gesloten drawer buiten de tabvolgorde (WCAG 2.4.3);
+        // als attribuut gezet omdat React 18 de property nog niet kent
+        ref={(el) => el?.toggleAttribute('inert', !open)}
         className={
           'panel-deep fixed right-0 top-0 z-50 flex h-full w-full flex-col border-l border-white/10 text-white shadow-2xl backdrop-blur-2xl transition-transform duration-300 sm:max-w-[420px] sm:rounded-l-2xl ' +
           (open ? 'translate-x-0' : 'translate-x-full')

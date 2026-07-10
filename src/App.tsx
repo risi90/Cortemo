@@ -30,14 +30,38 @@ type NavState = {
 
 const PAGES: Page[] = ['inspiratie', 'b2b', 'maatwerk', 'checkout', 'verhaal', 'admin']
 
+/** Nette, SEO-vriendelijke paden per pagina (met SPA-rewrite op de host). */
+const PAGE_PATHS: Record<Page, string> = {
+  inspiratie: '/inspiratie',
+  b2b: '/zakelijk',
+  maatwerk: '/maatwerk',
+  checkout: '/afrekenen',
+  verhaal: '/verhaal',
+  admin: '/beheer',
+}
+
 function stateFromLocation(): NavState {
+  const base = { groupId: 'planten' as GroupId, productId: PRODUCTS[0].id, sub: null }
+  const path = location.pathname.replace(/\/+$/, '') || '/'
+  const seg = path.split('/').filter(Boolean)
+
+  // padgebaseerde routes
+  if (seg[0] === 'collectie' && GROUPS.some((g) => g.id === seg[1])) {
+    return { ...base, view: 'list', groupId: seg[1] as GroupId }
+  }
+  if (seg[0] === 'product') {
+    const product = PRODUCTS.find((p) => p.id === seg[1])
+    if (product) return { ...base, view: 'pdp', groupId: product.group, productId: product.id }
+  }
+  const pageEntry = (Object.entries(PAGE_PATHS) as [Page, string][]).find(([, p]) => p === path)
+  if (pageEntry) return { ...base, view: pageEntry[0] }
+
+  // oude query-param-links blijven werken (worden daarna ge-redirect)
   const qs = new URLSearchParams(location.search)
   const cat = qs.get('cat')
   const page = qs.get('page')
   const product = PRODUCTS.find((p) => p.id === qs.get('product')) || null
   const group = GROUPS.some((g) => g.id === cat) ? (cat as GroupId) : null
-
-  const base = { groupId: 'planten' as GroupId, productId: PRODUCTS[0].id, sub: null }
   if (product) return { ...base, view: 'pdp', groupId: product.group, productId: product.id }
   if (group) return { ...base, view: 'list', groupId: group }
   if (PAGES.includes(page as Page)) return { ...base, view: page as Page }
@@ -47,14 +71,55 @@ function stateFromLocation(): NavState {
 function urlFor(s: NavState): string {
   switch (s.view) {
     case 'root':
-      return location.pathname
+      return '/'
     case 'list':
-      return '?cat=' + s.groupId
+      return '/collectie/' + s.groupId
     case 'pdp':
-      return '?product=' + s.productId
+      return '/product/' + s.productId
     default:
-      return '?page=' + s.view
+      return PAGE_PATHS[s.view]
   }
+}
+
+/** Paginatitel en meta per view; beheer en afrekenen blijven uit de index. */
+function applySeo(s: NavState) {
+  const group = GROUPS.find((g) => g.id === s.groupId)
+  const product = PRODUCTS.find((p) => p.id === s.productId)
+  const titles: Record<View, string> = {
+    root: 'Cortemo — Maatwerk cortenstaal, tot op de millimeter',
+    list: (group?.label ?? 'Collectie') + ' — Cortemo',
+    pdp: (product?.name ?? 'Product') + ' — Cortemo',
+    inspiratie: 'Inspiratie & projecten — Cortemo',
+    b2b: 'Zakelijk portal voor hoveniers en architecten — Cortemo',
+    maatwerk: '3D Maatwerk Configurator — Cortemo',
+    checkout: 'Afrekenen — Cortemo',
+    verhaal: 'Ons verhaal: liefhebbers van staal — Cortemo',
+    admin: 'Beheer — Cortemo',
+  }
+  const descriptions: Partial<Record<View, string>> = {
+    root: 'Cortenstaal op maat: plantenbakken, keerwanden, borderranden en schuttingen. Ontwerp in 3D, zie direct de prijs en ontvang binnen 15 werkdagen.',
+    list: group ? group.label + ': ' + group.sub + '. Naadloos gelast cortenstaal, vaste prijzen.' : undefined,
+    pdp: product ? product.name + ' — ' + product.desc : undefined,
+    inspiratie: 'Echte tuinen, terrassen en daktuinen met Cortemo cortenstaal. Shop de look of bouw hem na in de configurator.',
+    verhaal: 'Roots in Drenthe, jarenlange ervaring in de staalindustrie. Metaalbewerking, lasersnijden, lassen en kanten: alles kunnen we maken.',
+    maatwerk: 'Stel je cortenstalen product samen tot op de millimeter en zie direct wat het kost.',
+  }
+  document.title = titles[s.view]
+  const setMeta = (name: string, content: string | null) => {
+    let el = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
+    if (!content) {
+      el?.remove()
+      return
+    }
+    if (!el) {
+      el = document.createElement('meta')
+      el.name = name
+      document.head.appendChild(el)
+    }
+    el.content = content
+  }
+  setMeta('description', descriptions[s.view] ?? descriptions.root ?? null)
+  setMeta('robots', s.view === 'admin' || s.view === 'checkout' ? 'noindex, nofollow' : null)
 }
 
 const CART_KEY = 'cortemo-cart'
@@ -137,6 +202,22 @@ export function App() {
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
+
+  // Oude ?page=/?cat=/?product=-links stilletjes omzetten naar het nette pad
+  // (cfg-param van de configurator blijft behouden).
+  useEffect(() => {
+    const qs = new URLSearchParams(location.search)
+    if (qs.has('page') || qs.has('cat') || qs.has('product')) {
+      const cfg = qs.get('cfg')
+      history.replaceState(null, '', urlFor(stateFromLocation()) + (cfg ? '?cfg=' + cfg : ''))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // titel + meta description per pagina
+  useEffect(() => {
+    applySeo(nav)
+  }, [nav])
 
   // Catalogus en tarieven uit de backend laden (no-op zonder configuratie).
   const [, setCatalogVersion] = useState(0)

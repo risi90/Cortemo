@@ -4,21 +4,21 @@ const FOOTER_COLS: FooterCol[] = [
   {
     title: 'Assortiment',
     links: [
-      ['Planten & bomen', '?cat=planten'],
-      ['Maatwerk componenten', '?cat=hoogte'],
-      ['Vuur & water', '?cat=vuurwater'],
-      ['Decoratie & praktisch', '?cat=deco'],
-      ['Configurator', '#'],
+      ['Planten & bomen', '/collectie/planten'],
+      ['Maatwerk componenten', '/collectie/hoogte'],
+      ['Vuur & water', '/collectie/vuurwater'],
+      ['Decoratie & praktisch', '/collectie/deco'],
+      ['Configurator', '/maatwerk'],
     ],
   },
   {
     title: 'Bedrijf',
     links: [
-      ['Ons verhaal', '?page=verhaal'],
-      ['Zakelijk portal (B2B)', '?page=b2b'],
+      ['Ons verhaal', '/verhaal'],
+      ['Zakelijk portal (B2B)', '/zakelijk'],
       ['Contact', '#'],
       ['Werken bij Cortemo', '#'],
-      ['Beheer', '?page=admin'],
+      ['Beheer', '/beheer'],
     ],
   },
   {
