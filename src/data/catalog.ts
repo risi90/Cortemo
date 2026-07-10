@@ -20,6 +20,10 @@ export type Product = {
   variants: [string, number][]
   /** [label, meerprijs] */
   options: [string, number][]
+  /** Levertijd-tekst, bijv. "5 tot 8 werkdagen"; leeg = standaardtekst. */
+  leadtime?: string
+  /** null/undefined = altijd leverbaar; 0 = uitverkocht. */
+  stock?: number | null
 }
 
 /**
@@ -39,6 +43,8 @@ export function hydrateCatalog(
     descr: string
     variants: [string, number][]
     options: [string, number][]
+    leadtime?: string
+    stock?: number | null
   }[],
 ): void {
   const next: Product[] = rows
@@ -54,6 +60,8 @@ export function hydrateCatalog(
       desc: r.descr,
       variants: r.variants,
       options: r.options,
+      leadtime: r.leadtime || undefined,
+      stock: r.stock,
     }))
   if (next.length) PRODUCTS.splice(0, PRODUCTS.length, ...next)
 }

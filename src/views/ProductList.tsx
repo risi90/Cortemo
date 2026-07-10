@@ -87,6 +87,11 @@ export function ProductList({
                 <div className="text-[12px] text-white/55">{p.dims}</div>
               </div>
               <div className="shrink-0 whitespace-nowrap text-right">
+                {p.stock === 0 && (
+                  <span className="mr-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/60">
+                    uitverkocht
+                  </span>
+                )}
                 <span className="text-[11px] text-white/55">vanaf </span>
                 <span className="text-[14px] font-bold tabular-nums text-white">
                   {euro(p.price)}

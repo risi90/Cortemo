@@ -27,6 +27,8 @@ const emptyDraft = (): Draft => ({
   descr: '',
   variants: [['Standaard', 0]],
   options: [],
+  leadtime: '',
+  stock: null,
 })
 
 const slug = (name: string) =>
@@ -175,6 +177,22 @@ function Editor({
           <span className="mb-1 block text-[12px] font-semibold text-white/70">Afbeeldings-URL</span>
           <input type="text" value={d.img} placeholder="/img/naam.jpg" onChange={(e) => set('img', e.target.value)} className={fieldSm + ' w-full'} />
         </label>
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-semibold text-white/70">Levertijd</span>
+          <input type="text" value={d.leadtime} placeholder="bijv. 5 tot 8 werkdagen" onChange={(e) => set('leadtime', e.target.value)} className={fieldSm + ' w-full'} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-semibold text-white/70">
+            Voorraad <span className="font-normal text-white/40">(leeg = altijd leverbaar, 0 = uitverkocht)</span>
+          </span>
+          <input
+            type="number"
+            min={0}
+            value={d.stock ?? ''}
+            onChange={(e) => set('stock', e.target.value === '' ? null : Math.max(0, +e.target.value))}
+            className={fieldSm + ' w-full tabular-nums'}
+          />
+        </label>
       </div>
       <label className="block">
         <span className="mb-1 block text-[12px] font-semibold text-white/70">Omschrijving</span>
@@ -224,6 +242,8 @@ export function ProductsAdmin() {
       descr: p.desc,
       variants: [...p.variants],
       options: [...p.options],
+      leadtime: p.leadtime ?? '',
+      stock: p.stock ?? null,
     }
   }
 

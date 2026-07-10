@@ -52,6 +52,8 @@ export type DbProduct = {
   descr: string
   variants: [string, number][]
   options: [string, number][]
+  leadtime: string
+  stock: number | null
 }
 
 export async function fetchDbProducts(): Promise<DbProduct[] | null> {

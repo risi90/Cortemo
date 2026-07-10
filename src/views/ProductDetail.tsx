@@ -30,7 +30,10 @@ export function ProductDetail({
     p.variants[variant][1] +
     p.options.reduce((s, [label, price]) => s + (opts[label] ? price : 0), 0)
 
+  const soldOut = p.stock === 0
+
   const add = () => {
+    if (soldOut) return
     const selected = p.options.filter(([label]) => opts[label]).map(([label]) => label)
     onAdd({
       key: [p.id, variant, ...selected].join('|'),
@@ -126,7 +129,7 @@ export function ProductDetail({
             <div className="flex items-end justify-between border-t border-white/10 pt-4">
               <div>
                 <div className="text-[12px] text-white/50">Totaal incl. btw</div>
-                <div className="text-[11px] text-white/35">Levertijd 5 tot 8 werkdagen</div>
+                <div className="text-[11px] text-white/35">Levertijd {p.leadtime || '5 tot 8 werkdagen'}</div>
               </div>
               <div className="text-[26px] font-extrabold leading-none tabular-nums">
                 {euro(total)}
@@ -135,12 +138,15 @@ export function ProductDetail({
 
             <button
               onClick={add}
+              disabled={soldOut}
               className={
-                'flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-semibold text-white transition-all ' +
+                'flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50 ' +
                 (added ? 'bg-ok' : 'bg-rust hover:bg-rust-deep active:scale-[.99]')
               }
             >
-              {added ? (
+              {soldOut ? (
+                'Tijdelijk uitverkocht'
+              ) : added ? (
                 <>
                   <Check size={16} strokeWidth={2} /> Toegevoegd
                 </>
@@ -183,12 +189,15 @@ export function ProductDetail({
         </div>
         <button
           onClick={add}
+          disabled={soldOut}
           className={
-            'flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-5 py-3 text-[14px] font-semibold text-white transition-all ' +
+            'flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-5 py-3 text-[14px] font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50 ' +
             (added ? 'bg-ok' : 'bg-rust hover:bg-rust-deep active:scale-[.99]')
           }
         >
-          {added ? (
+          {soldOut ? (
+            'Uitverkocht'
+          ) : added ? (
             <>
               <Check size={15} strokeWidth={2} /> Toegevoegd
             </>
