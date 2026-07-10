@@ -1,6 +1,8 @@
 import { ArrowRight, Shapes } from 'lucide-react'
 import { GROUP_IMG, GROUPS, PRODUCTS, type Group, type GroupId } from '../data/catalog'
 import { ProductImage } from '../components/ProductImage'
+import { MiniConfigurator } from '../components/MiniConfigurator'
+import { useConfiguratorStore } from '../store/configuratorStore'
 
 const count = (id: GroupId) => PRODUCTS.filter((p) => p.group === id).length
 
@@ -78,11 +80,30 @@ export function GroupGrid({
   onPick: (id: GroupId) => void
   onConfigurator: () => void
 }) {
+  const setType = useConfiguratorStore((s) => s.setType)
+
+  const quickLinks: [string, GroupId][] = [
+    ['Plantenbakken', 'planten'],
+    ['Borderranden', 'hoogte'],
+    ['Naamborden', 'deco'],
+    ['Vuurschalen', 'vuurwater'],
+  ]
+
   return (
     <div>
-      {/* video-hero, full-bleed over de volledige breedte en hoogte van de
-          hero-sectie; het configurator-blok ligt over de achtergrondvideo */}
-      <section className="on-media relative -mt-24 flex min-h-[72vh] flex-col justify-end overflow-hidden rounded-t-2xl sm:-mt-28 sm:rounded-t-3xl md:-mt-32 md:min-h-[82vh]">
+      {/* video-hero zoals in het ontwerp: één afgeronde, viewport-hoge kaart
+          met de video full-bleed, headline linksonder en de mini-configurator
+          rechtsonder. De -mt trekt hem tot bovenin de page-shell, achter de
+          zwevende navbar. */}
+      <section className="on-media relative -mt-24 flex min-h-[calc(100vh-24px)] flex-col overflow-hidden rounded-2xl sm:-mt-28 sm:min-h-[calc(100vh-32px)] sm:rounded-3xl md:-mt-32 md:min-h-[calc(100vh-48px)]">
+        {/* corten-fallback achter de video */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(135deg,#8A3A1B 0%,#B45309 28%,#93441E 55%,#A85520 78%,#7C2D12 100%)',
+          }}
+        />
         <video
           className="absolute inset-0 h-full w-full object-cover"
           poster="/img/plantenbak.webp"
@@ -103,32 +124,36 @@ export function GroupGrid({
           <source src="/video/hero.webm" type="video/webm" />
           <source src="/video/hero.mp4" type="video/mp4" />
         </video>
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/20" />
-        <div className="relative z-10 mx-auto w-full max-w-6xl px-4 pb-14 pt-40 sm:px-6 sm:pb-16 lg:pb-20">
-          <p className="text-[12px] font-semibold uppercase tracking-[.2em] text-white/70">
-            Maatwerk cortenstaal
-          </p>
-          <h1 className="serif mt-4 max-w-2xl text-[36px] leading-[1.02] tracking-[-.03em] text-white sm:text-[46px] md:text-[58px]">
-            Tot op de millimeter, <em className="text-white/60">naadloos gelast.</em>
-          </h1>
-          <p className="mt-4 max-w-md text-[15px] leading-relaxed text-white/75">
-            Ontwerp je plantenbak, keerwand of schutting in 3D en zie direct wat hij kost.
-            Geleverd door heel Nederland en Belgi&euml;.
-          </p>
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <button
-              onClick={onConfigurator}
-              className="flex items-center gap-2 rounded-xl bg-rust px-6 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-rust-deep"
-            >
-              Start de configurator <ArrowRight size={16} strokeWidth={2} />
-            </button>
-            <a
-              href="#collecties"
-              className="rounded-xl bg-white/15 px-6 py-3.5 text-[15px] font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/25"
-            >
-              Bekijk de collecties
-            </a>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
+
+        {/* onderste rij: headline + mini-configurator */}
+        <div className="relative z-10 mt-auto flex flex-col gap-6 p-4 pb-8 pt-36 sm:p-6 sm:pb-10 md:p-8 md:pb-10 lg:flex-row lg:items-end lg:justify-between">
+          <div className="shrink-0 lg:max-w-lg xl:max-w-2xl">
+            <h1 className="text-3xl font-medium leading-tight text-white drop-shadow-lg sm:text-4xl xl:text-5xl">
+              Cortenstaal met <span className="serif-accent">emotie</span>,
+              <br />
+              ontworpen door jou
+            </h1>
+            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium drop-shadow">
+              {quickLinks.map(([label, group], i) => (
+                <span key={label} className="flex items-center gap-x-5">
+                  {i > 0 && <span className="text-white/40">&middot;</span>}
+                  <button
+                    onClick={() => onPick(group)}
+                    className="text-white/85 transition-opacity hover:text-white hover:opacity-100"
+                  >
+                    {label}
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
+          <MiniConfigurator
+            onStart={(cfgType) => {
+              if (cfgType) setType(cfgType)
+              onConfigurator()
+            }}
+          />
         </div>
       </section>
 
