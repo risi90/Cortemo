@@ -198,7 +198,9 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-white p-3 sm:p-4 md:p-6">
-      <div className="page-shell min-h-[calc(100vh-24px)] rounded-2xl pb-4 text-white sm:min-h-[calc(100vh-32px)] sm:rounded-3xl md:min-h-[calc(100vh-48px)]">
+      {/* overflow-clip laat de video-hero netjes langs de afgeronde hoeken
+          lopen zonder position:sticky van de navbar te breken */}
+      <div className="page-shell min-h-[calc(100vh-24px)] overflow-clip rounded-2xl pb-4 text-white sm:min-h-[calc(100vh-32px)] sm:rounded-3xl md:min-h-[calc(100vh-48px)]">
         <Header
           count={cartCount(items)}
           active={active}
