@@ -95,7 +95,13 @@ export const useConfiguratorStore = create<ConfiguratorStore>((set) => ({
       next.s = Math.min(1.2, Math.max(0.08, next.s))
       next.ts = Math.min(0.9, Math.max(0.08, next.ts))
       next.ns = Math.min(0.9, Math.max(0.08, next.ns))
-      next.text = next.text.slice(0, 24)
+      // max 4 regels van elk max 24 tekens (past op het bord én in de cfg)
+      next.text = next.text
+        .split('\n')
+        .slice(0, 4)
+        .map((line) => line.slice(0, 24))
+        .join('\n')
+        .slice(0, 60)
       next.nr = next.nr.slice(0, 6)
       return { deco: next }
     }),

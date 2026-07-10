@@ -17,6 +17,7 @@ export type DecoState = {
   x: number
   y: number
   s: number
+  /** Tekst, meerdere regels via \n (bijv. alle bewoners). */
   text: string
   tx: number
   ty: number
@@ -25,9 +26,14 @@ export type DecoState = {
   nx: number
   ny: number
   ns: number
+  /** Lettertype voor tekst en nummer. */
+  font: 'modern' | 'klassiek' | 'mono'
   /** Eigen silhouet: genormaliseerde punten 0–100 (y omlaag). */
   custom?: FigurePath[]
 }
+
+/** Aantal te snijden tekens (spaties en regeleinden snijden niet). */
+export const letterCount = (tekst: string): number => tekst.replace(/\s+/g, '').length
 
 export function defaultDeco(typeId: ConfigTypeId): DecoState {
   const base: DecoState = {
@@ -40,9 +46,10 @@ export function defaultDeco(typeId: ConfigTypeId): DecoState {
     ty: 0.38,
     ts: 0.28,
     nr: '',
-    nx: 0.78,
+    nx: 0.72,
     ny: 0.66,
     ns: 0.4,
+    font: 'modern',
   }
   if (typeId === 'naambord') return { ...base, text: 'Cortemo', nr: '12', fig: '', x: 0.16, y: 0.6, s: 0.34 }
   if (typeId === 'figuur') return { ...base, fig: 'hert', s: 1 }
@@ -236,13 +243,13 @@ function geometryFor(state: ConfigState, P: ReturnType<typeof getPricing>): Geom
       const d = state.deco
       const fig = decoStats(d)
       const letterCut = (tekst: string, hoogteFr: number) =>
-        tekst.trim().length * P.optieTarieven.letterFactor * hoogteFr * H
+        letterCount(tekst) * P.optieTarieven.letterFactor * hoogteFr * H
       const cut =
         2 * (L + H) +
         fig.per * (d?.s ?? 0.3) * H +
         letterCut(d?.text ?? '', d?.ts ?? 0.28) +
         letterCut(d?.nr ?? '', d?.ns ?? 0.4)
-      const letters = (d?.text.trim().length ?? 0) + (d?.nr.trim().length ?? 0)
+      const letters = letterCount(d?.text ?? '') + letterCount(d?.nr ?? '')
       return {
         areaM2: L * H,
         cutM: cut,

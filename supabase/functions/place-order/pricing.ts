@@ -360,14 +360,17 @@ function geometryFor(state: ConfigState, P: PricingSettings): Geometry {
     case 'naambord': {
       const d = state.deco
       const fig = decoStats(d)
+      // spaties en regeleinden snijden niet mee — identiek aan letterCount
+      // in src/lib/pricing.ts
+      const chars = (tekst: string) => tekst.replace(/\s+/g, '').length
       const letterCut = (tekst: string, hoogteFr: number) =>
-        tekst.trim().length * P.optieTarieven.letterFactor * hoogteFr * H
+        chars(tekst) * P.optieTarieven.letterFactor * hoogteFr * H
       const cut =
         2 * (L + H) +
         fig.per * (d?.s ?? 0.3) * H +
         letterCut(d?.text ?? '', d?.ts ?? 0.28) +
         letterCut(d?.nr ?? '', d?.ns ?? 0.4)
-      const letters = (d?.text.trim().length ?? 0) + (d?.nr.trim().length ?? 0)
+      const letters = chars(d?.text ?? '') + chars(d?.nr ?? '')
       return {
         areaM2: L * H,
         cutM: cut,

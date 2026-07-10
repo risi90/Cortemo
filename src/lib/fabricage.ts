@@ -341,7 +341,18 @@ export function workOrderFor(state: ConfigState): WorkOrder {
       const inset = 16
       const teksten: FlatPart['teksten'] = []
       if (d?.text.trim()) {
-        teksten.push({ x: r1(d.tx * l), y: r1((1 - d.ty) * h), h: r1(d.ts * h), value: d.text.trim() })
+        // meerregelige tekst: één maatvaste GRAVEREN-regel per tekstregel
+        const lijnen = d.text.split('\n').filter((r) => r.trim() !== '')
+        const lijnH = d.ts * h
+        lijnen.forEach((regel, i) => {
+          const offset = (lijnen.length / 2 - i - 0.5) * lijnH
+          teksten.push({
+            x: r1(d.tx * l),
+            y: r1((1 - d.ty) * h + offset),
+            h: r1(lijnH),
+            value: regel.trim(),
+          })
+        })
       }
       if (d?.nr.trim()) {
         teksten.push({ x: r1(d.nx * l), y: r1((1 - d.ny) * h), h: r1(d.ns * h), value: d.nr.trim() })
@@ -371,7 +382,9 @@ export function workOrderFor(state: ConfigState): WorkOrder {
             : [],
         teksten,
         notities: [
-          'Teksten uitsnijden (stencil): contouren zet de werkvoorbereiding om vanuit het font; positie en hoogte in de GRAVEREN-laag zijn maatvast.',
+          `Teksten uitsnijden (stencil) in lettertype "${
+            d?.font === 'klassiek' ? 'Instrument Serif' : d?.font === 'mono' ? 'Courier (industrieel)' : 'Inter ExtraBold'
+          }": contouren zet de werkvoorbereiding om vanuit het font; positie en hoogte in de GRAVEREN-laag zijn maatvast.`,
         ],
       })
       break

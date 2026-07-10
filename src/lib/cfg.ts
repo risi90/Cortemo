@@ -19,6 +19,7 @@ function encodeDeco(d: DecoState): string {
     'x', pm(d.x), 'y', pm(d.y), 's', pm(d.s),
     't', encText(d.text), 'a', pm(d.tx), 'b', pm(d.ty), 'c', pm(d.ts),
     'n', encText(d.nr), 'd', pm(d.nx), 'e', pm(d.ny), 'g', pm(d.ns),
+    'q', encText(d.font),
   ]
   if (d.fig === 'custom' && d.custom?.length) {
     parts.push(
@@ -42,7 +43,7 @@ function decodeDeco(raw: string, typeId: ConfigState['typeId']): DecoState {
       case 'x': deco.x = num(value); break
       case 'y': deco.y = num(value); break
       case 's': deco.s = num(value); break
-      case 't': deco.text = decodeURIComponent(value).slice(0, 24); break
+      case 't': deco.text = decodeURIComponent(value).slice(0, 60); break
       case 'a': deco.tx = num(value); break
       case 'b': deco.ty = num(value); break
       case 'c': deco.ts = num(value); break
@@ -50,6 +51,11 @@ function decodeDeco(raw: string, typeId: ConfigState['typeId']): DecoState {
       case 'd': deco.nx = num(value); break
       case 'e': deco.ny = num(value); break
       case 'g': deco.ns = num(value); break
+      case 'q': {
+        const font = decodeURIComponent(value)
+        if (font === 'modern' || font === 'klassiek' || font === 'mono') deco.font = font
+        break
+      }
       case 'p':
         deco.custom = value
           .split('!')

@@ -99,6 +99,49 @@ function DimensionControl({ dimKey }: { dimKey: DimensionKey }) {
   )
 }
 
+/** Inklapbare paneelsectie: houdt de editor overzichtelijk, zeker op mobiel. */
+function Section({
+  title,
+  icon,
+  summary,
+  defaultOpen = false,
+  children,
+}: {
+  title: string
+  icon?: React.ReactNode
+  /** Korte samenvatting van de huidige keuze, zichtbaar als de sectie dicht is. */
+  summary?: string
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="border-b border-white/10 pb-4 last:border-b-0 last:pb-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <span className="flex items-center gap-2 text-[13px] font-semibold text-white">
+          {icon}
+          {title}
+        </span>
+        <span className="flex min-w-0 items-center gap-2">
+          {!open && summary && (
+            <span className="truncate text-[12px] text-white/45">{summary}</span>
+          )}
+          <ChevronDown
+            size={14}
+            strokeWidth={2}
+            className={'shrink-0 text-white/40 transition-transform ' + (open ? 'rotate-180' : '')}
+          />
+        </span>
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </div>
+  )
+}
+
 /* ---------- hoofdcomponent ---------- */
 
 export default function Configurator3D({
@@ -271,8 +314,7 @@ export default function Configurator3D({
       <div className="w-full shrink-0 lg:w-[420px]">
         <div className="liquid-glass flex flex-col gap-6 rounded-2xl p-6 text-white sm:p-7">
           {/* producttype */}
-          <div>
-            <div className="mb-2 text-[13px] font-semibold">Producttype</div>
+          <Section title="Producttype" summary={type.label} defaultOpen>
             <div className="grid grid-cols-2 gap-2">
               {CONFIG_TYPES.map((t) => (
                 <button
@@ -290,23 +332,28 @@ export default function Configurator3D({
               ))}
             </div>
             <p className="mt-2 text-[12px] leading-relaxed text-white/50">{type.desc}</p>
-          </div>
+          </Section>
 
           {/* afmetingen */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-[13px] font-semibold">
-              <Ruler size={14} strokeWidth={2} className="text-rust" /> Afmetingen
+          <Section
+            title="Afmetingen"
+            icon={<Ruler size={14} strokeWidth={2} className="text-rust" />}
+            summary={type.dimensions.map((d) => dims[d.key]).join(' × ') + ' mm'}
+            defaultOpen
+          >
+            <div className="space-y-4">
+              {type.dimensions.map((d) => (
+                <DimensionControl key={typeId + d.key} dimKey={d.key} />
+              ))}
             </div>
-            {type.dimensions.map((d) => (
-              <DimensionControl key={typeId + d.key} dimKey={d.key} />
-            ))}
-          </div>
+          </Section>
 
           {/* staaldikte */}
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold">
-              <Box size={14} strokeWidth={2} className="text-rust" /> Staaldikte
-            </div>
+          <Section
+            title="Staaldikte"
+            icon={<Box size={14} strokeWidth={2} className="text-rust" />}
+            summary={thickness + ' mm'}
+          >
             <div className="flex gap-2">
               {type.thicknesses.map((t) => (
                 <button
@@ -323,35 +370,68 @@ export default function Configurator3D({
                 </button>
               ))}
             </div>
-          </div>
+          </Section>
 
           {/* ontwerp-editor: figuur, tekst en nummer (versleepbaar in 3D) */}
           {type.deco && deco && (
-            <div>
-              <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold">
-                <Shapes size={14} strokeWidth={2} className="text-rust" /> Ontwerp
-              </div>
-
+            <Section
+              title="Ontwerp"
+              icon={<Shapes size={14} strokeWidth={2} className="text-rust" />}
+              summary={
+                [
+                  deco.fig ? (deco.fig === 'custom' ? 'eigen silhouet' : figure(deco.fig)?.label) : '',
+                  deco.text.trim() ? '“' + deco.text.trim().split('\n')[0] + '”' : '',
+                  deco.nr.trim() ? 'nr. ' + deco.nr.trim() : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || 'nog leeg'
+              }
+              defaultOpen
+            >
               {type.deco === 'bord' && (
-                <div className="mb-3 grid grid-cols-[1fr_88px] gap-2">
-                  <input
-                    type="text"
-                    value={deco.text}
-                    maxLength={24}
-                    onChange={(e) => setDeco({ text: e.target.value })}
-                    placeholder="Naam of tekst"
-                    aria-label="Tekst op het bord"
-                    className="rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-[16px] font-semibold text-white outline-none placeholder:text-white/30 focus:border-rust sm:text-[13px]"
-                  />
-                  <input
-                    type="text"
-                    value={deco.nr}
-                    maxLength={6}
-                    onChange={(e) => setDeco({ nr: e.target.value })}
-                    placeholder="Nr."
-                    aria-label="Huisnummer"
-                    className="rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-center text-[16px] font-semibold tabular-nums text-white outline-none placeholder:text-white/30 focus:border-rust sm:text-[13px]"
-                  />
+                <div className="mb-3 space-y-2">
+                  <div className="grid grid-cols-[1fr_88px] gap-2">
+                    <textarea
+                      value={deco.text}
+                      rows={Math.min(4, Math.max(2, deco.text.split('\n').length))}
+                      onChange={(e) => setDeco({ text: e.target.value })}
+                      placeholder={'Naam of tekst\nEnter = nieuwe regel'}
+                      aria-label="Tekst op het bord (meerdere regels mogelijk)"
+                      className="resize-none rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-[16px] font-semibold leading-snug text-white outline-none placeholder:text-white/30 focus:border-rust sm:text-[13px]"
+                    />
+                    <input
+                      type="text"
+                      value={deco.nr}
+                      maxLength={6}
+                      onChange={(e) => setDeco({ nr: e.target.value })}
+                      placeholder="Nr."
+                      aria-label="Huisnummer"
+                      className="self-start rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-center text-[16px] font-semibold tabular-nums text-white outline-none placeholder:text-white/30 focus:border-rust sm:text-[13px]"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    {(
+                      [
+                        ['modern', 'Modern', '800 14px Inter, sans-serif'],
+                        ['klassiek', 'Klassiek', '400 15px "Instrument Serif", serif'],
+                        ['mono', 'Industrieel', '700 13px "Courier New", monospace'],
+                      ] as const
+                    ).map(([id, label, font]) => (
+                      <button
+                        key={id}
+                        onClick={() => setDeco({ font: id })}
+                        style={{ font }}
+                        className={
+                          'flex-1 rounded-lg border py-2 transition-all ' +
+                          (deco.font === id
+                            ? 'border-rust bg-white/10 text-white'
+                            : 'border-transparent bg-white/5 text-white/55 hover:text-white')
+                        }
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -454,15 +534,19 @@ export default function Configurator3D({
               {type.deco !== 'vorm' && (
                 <p className="mt-2 text-[11px] leading-relaxed text-white/40">
                   Sleep {type.deco === 'bord' ? 'tekst, nummer en figuur' : 'het figuur'} direct in
-                  het 3D-beeld naar de juiste plek.
+                  het 3D-beeld; in de buurt van het midden snapt alles vast (oranje hulplijn).
                 </p>
               )}
-            </div>
+            </Section>
           )}
 
           {/* opties */}
-          <div>
-            <div className="mb-2 text-[13px] font-semibold">Opties</div>
+          <Section
+            title="Opties"
+            summary={
+              type.options.filter((o) => options[o.id]).map((o) => o.label).join(' · ') || 'geen'
+            }
+          >
             <div className="divide-y divide-white/5 rounded-xl bg-white/5 px-1">
               {type.options.map((o) => (
                 <label
@@ -484,7 +568,7 @@ export default function Configurator3D({
                 </label>
               ))}
             </div>
-          </div>
+          </Section>
 
           {/* fabricage-meldingen */}
           {(validation.errors.length > 0 || validation.warnings.length > 0) && (

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import type { ThreeEvent } from '@react-three/fiber'
 import { cortenLaserMaterial, cortenMaterial } from './cortenMaterial'
@@ -112,64 +112,122 @@ function buildParts(state: ConfigState): { parts: Part[]; lift: number } {
 
 /* ---------- tekst als uitsnede-look (canvas-decal, geen font-assets) ---------- */
 
+const FONT_FACES: Record<string, string> = {
+  modern: '800 96px Inter, system-ui, sans-serif',
+  klassiek: '400 96px "Instrument Serif", Georgia, serif',
+  mono: '700 96px "Courier New", monospace',
+}
+
+const LINE_PX = 128 // canvas-hoogte per tekstregel (fontgrootte 96)
+
 const textTextureCache = new Map<string, THREE.CanvasTexture>()
 
-function textTexture(text: string): { tex: THREE.CanvasTexture; ratio: number } {
-  const key = text
+function textTexture(
+  text: string,
+  fontId: string,
+): { tex: THREE.CanvasTexture; lines: number; ratio: number } {
+  const key = fontId + '|' + text
+  const font = FONT_FACES[fontId] ?? FONT_FACES.modern
+  const lines = text.split('\n').filter((l) => l.trim() !== '')
+  if (lines.length === 0) lines.push(' ')
   let tex = textTextureCache.get(key)
-  const font = '700 96px Archivo, Inter, system-ui, sans-serif'
   if (!tex) {
+    const probe = document.createElement('canvas').getContext('2d')!
+    probe.font = font
+    const w = Math.max(8, Math.ceil(Math.max(...lines.map((l) => probe.measureText(l).width), 8)) + 16)
     const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = LINE_PX * lines.length
     const ctx = canvas.getContext('2d')!
     ctx.font = font
-    const w = Math.max(8, Math.ceil(ctx.measureText(text).width) + 16)
-    canvas.width = w
-    canvas.height = 128
-    const ctx2 = canvas.getContext('2d')!
-    ctx2.clearRect(0, 0, w, 128)
-    ctx2.font = font
-    ctx2.textBaseline = 'middle'
-    ctx2.fillStyle = '#0c0906'
-    ctx2.fillText(text, 8, 68)
+    ctx.textBaseline = 'middle'
+    ctx.textAlign = 'center'
+    ctx.fillStyle = '#0c0906'
+    lines.forEach((line, i) => ctx.fillText(line, w / 2, LINE_PX * i + LINE_PX * 0.55))
     tex = new THREE.CanvasTexture(canvas)
     tex.anisotropy = 4
     if (textTextureCache.size > 40) textTextureCache.clear()
     textTextureCache.set(key, tex)
   }
-  return { tex, ratio: (tex.image as HTMLCanvasElement).width / 128 }
+  return {
+    tex,
+    lines: lines.length,
+    ratio: (tex.image as HTMLCanvasElement).width / LINE_PX,
+  }
+}
+
+/** Decal-afmetingen in meters bij letterhoogte heightM (voor klemmen). */
+function textDecalSize(text: string, heightM: number, fontId: string): { w: number; h: number } {
+  if (!text.trim()) return { w: 0, h: 0 }
+  const { lines, ratio } = textTexture(text, fontId)
+  return { w: heightM * ratio * 0.78, h: heightM * lines }
 }
 
 function TextDecal({
   text,
   heightM,
+  fontId,
   position,
-  rotation,
   onPointerDown,
 }: {
   text: string
   heightM: number
+  fontId: string
   position: [number, number, number]
-  rotation?: [number, number, number]
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
 }) {
-  const { tex, ratio } = useMemo(() => textTexture(text), [text])
+  const { tex, lines, ratio } = useMemo(() => textTexture(text, fontId), [text, fontId])
   if (!text.trim()) return null
   return (
-    <mesh position={position} rotation={rotation} onPointerDown={onPointerDown}>
-      <planeGeometry args={[heightM * ratio * 0.78, heightM]} />
+    <mesh position={position} onPointerDown={onPointerDown}>
+      <planeGeometry args={[heightM * ratio * 0.78, heightM * lines]} />
       <meshBasicMaterial map={tex} transparent depthWrite={false} />
     </mesh>
   )
 }
 
-/* ---------- producttypes met ontwerp-editor ---------- */
+/* ---------- slepen: delta-gebaseerd, met snappen op het midden ---------- */
 
-function useDrag(target: DragTarget) {
-  const setDragging = useConfiguratorStore((s) => s.setDragging)
-  return (e: ThreeEvent<PointerEvent>) => {
-    e.stopPropagation()
-    setDragging(target)
-  }
+type DragInfo = { target: Exclude<DragTarget, null>; px: number; py: number; x0: number; y0: number }
+
+/** Snap naar het midden zodra je er dichtbij komt (±3,5% van de plaat). */
+const snapCenter = (v: number) => (Math.abs(v - 0.5) < 0.035 ? 0.5 : v)
+
+const clamp01 = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
+
+/** Oranje hulplijnen door het midden zodra een element gesnapt staat. */
+function CenterGuides({
+  snapX,
+  snapY,
+  w,
+  h,
+  position,
+  rotation,
+}: {
+  snapX: boolean
+  snapY: boolean
+  w: number
+  h: number
+  position: [number, number, number]
+  rotation?: [number, number, number]
+}) {
+  if (!snapX && !snapY) return null
+  return (
+    <group position={position} rotation={rotation}>
+      {snapX && (
+        <mesh>
+          <planeGeometry args={[0.0016, h]} />
+          <meshBasicMaterial color="#e06a35" transparent opacity={0.9} depthWrite={false} />
+        </mesh>
+      )}
+      {snapY && (
+        <mesh>
+          <planeGeometry args={[w, 0.0016]} />
+          <meshBasicMaterial color="#e06a35" transparent opacity={0.9} depthWrite={false} />
+        </mesh>
+      )}
+    </group>
+  )
 }
 
 /** Ronde staptegel met optioneel uitgesneden motief (echt gat). */
@@ -179,8 +237,9 @@ function Staptegel({ state, rust }: { state: ConfigState; rust: number }) {
   const d = state.deco
   const paths = decoPaths(state)
   const setDeco = useConfiguratorStore((s) => s.setDeco)
+  const setDragging = useConfiguratorStore((s) => s.setDragging)
   const dragging = useConfiguratorStore((s) => s.dragging)
-  const startDrag = useDrag('fig')
+  const drag = useRef<DragInfo | null>(null)
 
   const geometry = useMemo(() => {
     const shape = new THREE.Shape()
@@ -196,11 +255,23 @@ function Staptegel({ state, rust }: { state: ConfigState; rust: number }) {
     return geo
   }, [D, t, d?.s, d?.x, d?.y, d?.fig, paths, d])
 
+  const down = (e: ThreeEvent<PointerEvent>) => {
+    if (!paths.length || !d) return
+    e.stopPropagation()
+    setDragging('fig')
+    drag.current = { target: 'fig', px: e.point.x, py: -e.point.z, x0: d.x, y0: d.y }
+  }
+
+  // delta-gebaseerd: de vorm beweegt precies mee met je vinger, en snapt
+  // op het midden van de tegel zodra je er dichtbij komt
   const move = (e: ThreeEvent<PointerEvent>) => {
-    if (dragging !== 'fig' || !d) return
-    const figH = d.s * D
-    const span = D - figH || 1
-    setDeco({ x: e.point.x / span + 0.5, y: 0.5 - -e.point.z / span })
+    const info = drag.current
+    if (dragging !== 'fig' || !d || !info) return
+    const span = D - d.s * D || 1
+    setDeco({
+      x: snapCenter(info.x0 + (e.point.x - info.px) / span),
+      y: snapCenter(info.y0 - (-e.point.z - info.py) / span),
+    })
   }
 
   return (
@@ -210,9 +281,19 @@ function Staptegel({ state, rust }: { state: ConfigState; rust: number }) {
         material={cortenMaterial(rust)}
         castShadow
         receiveShadow
-        onPointerDown={paths.length ? startDrag : undefined}
+        onPointerDown={down}
         onPointerMove={move}
       />
+      {dragging === 'fig' && d && (
+        <CenterGuides
+          snapX={d.x === 0.5}
+          snapY={d.y === 0.5}
+          w={D}
+          h={D}
+          position={[0, t + 0.0015, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        />
+      )}
     </group>
   )
 }
@@ -225,10 +306,9 @@ function Naambord({ state, rust }: { state: ConfigState; rust: number }) {
   const d = state.deco
   const paths = decoPaths(state)
   const setDeco = useConfiguratorStore((s) => s.setDeco)
+  const setDragging = useConfiguratorStore((s) => s.setDragging)
   const dragging = useConfiguratorStore((s) => s.dragging)
-  const dragFig = useDrag('fig')
-  const dragText = useDrag('text')
-  const dragNr = useDrag('nr')
+  const drag = useRef<DragInfo | null>(null)
 
   const geometry = useMemo(() => {
     const r = Math.min(0.012, H * 0.08)
@@ -261,20 +341,68 @@ function Naambord({ state, rust }: { state: ConfigState; rust: number }) {
     return geo
   }, [L, H, t, d?.s, d?.x, d?.y, d?.fig, paths, d])
 
-  const move = (e: ThreeEvent<PointerEvent>) => {
-    if (!dragging || !d) return
-    const local = { x: e.point.x, y: e.point.y - (H / 2 + 0.02) }
-    if (dragging === 'fig') {
-      const span = { x: L - d.s * H || 1, y: H - d.s * H || 1 }
-      setDeco({ x: local.x / span.x + 0.5, y: 0.5 - local.y / span.y })
-    } else if (dragging === 'text') {
-      setDeco({ tx: local.x / L + 0.5, ty: 0.5 - local.y / H })
-    } else if (dragging === 'nr') {
-      setDeco({ nx: local.x / L + 0.5, ny: 0.5 - local.y / H })
+  const yc = H / 2 + 0.02 // bord hangt net boven de grond
+
+  // tekst en nummer blijven altijd binnen de plaat (halve decalmaat marge)
+  const bounds = (value: string, heightM: number) => {
+    const size = textDecalSize(value, heightM, d?.font ?? 'modern')
+    return {
+      minX: Math.min(0.5, size.w / 2 / L),
+      maxX: Math.max(0.5, 1 - size.w / 2 / L),
+      minY: Math.min(0.5, size.h / 2 / H),
+      maxY: Math.max(0.5, 1 - size.h / 2 / H),
     }
   }
 
-  const yc = H / 2 + 0.02 // bord hangt net boven de grond
+  const startDrag = (target: Exclude<DragTarget, null>) => (e: ThreeEvent<PointerEvent>) => {
+    if (!d) return
+    e.stopPropagation()
+    setDragging(target)
+    const [x0, y0] =
+      target === 'fig' ? [d.x, d.y] : target === 'text' ? [d.tx, d.ty] : [d.nx, d.ny]
+    drag.current = { target, px: e.point.x, py: e.point.y - yc, x0, y0 }
+  }
+
+  const move = (e: ThreeEvent<PointerEvent>) => {
+    const info = drag.current
+    if (!dragging || !d || !info || info.target !== dragging) return
+    const dx = e.point.x - info.px
+    const dy = e.point.y - yc - info.py
+    if (dragging === 'fig') {
+      const span = { x: L - d.s * H || 1, y: H - d.s * H || 1 }
+      setDeco({
+        x: snapCenter(info.x0 + dx / span.x),
+        y: snapCenter(info.y0 - dy / span.y),
+      })
+    } else if (dragging === 'text') {
+      const b = bounds(d.text, d.ts * H)
+      setDeco({
+        tx: clamp01(snapCenter(info.x0 + dx / L), b.minX, b.maxX),
+        ty: clamp01(snapCenter(info.y0 - dy / H), b.minY, b.maxY),
+      })
+    } else if (dragging === 'nr') {
+      const b = bounds(d.nr, d.ns * H)
+      setDeco({
+        nx: clamp01(snapCenter(info.x0 + dx / L), b.minX, b.maxX),
+        ny: clamp01(snapCenter(info.y0 - dy / H), b.minY, b.maxY),
+      })
+    }
+  }
+
+  // ook zonder slepen netjes binnen de plaat renderen (bijv. na groter font)
+  const textB = d ? bounds(d.text, d.ts * H) : null
+  const nrB = d ? bounds(d.nr, d.ns * H) : null
+  const tx = d && textB ? clamp01(d.tx, textB.minX, textB.maxX) : 0.5
+  const ty = d && textB ? clamp01(d.ty, textB.minY, textB.maxY) : 0.5
+  const nx = d && nrB ? clamp01(d.nx, nrB.minX, nrB.maxX) : 0.5
+  const ny = d && nrB ? clamp01(d.ny, nrB.minY, nrB.maxY) : 0.5
+
+  const activeSnap =
+    dragging === 'fig' ? { x: d?.x === 0.5, y: d?.y === 0.5 }
+    : dragging === 'text' ? { x: tx === 0.5, y: ty === 0.5 }
+    : dragging === 'nr' ? { x: nx === 0.5, y: ny === 0.5 }
+    : { x: false, y: false }
+
   return (
     <group position={[0, yc, 0]}>
       <mesh
@@ -282,7 +410,7 @@ function Naambord({ state, rust }: { state: ConfigState; rust: number }) {
         material={cortenMaterial(rust)}
         castShadow
         receiveShadow
-        onPointerDown={paths.length ? dragFig : undefined}
+        onPointerDown={paths.length ? startDrag('fig') : undefined}
         onPointerMove={move}
       />
       {d && (
@@ -290,15 +418,26 @@ function Naambord({ state, rust }: { state: ConfigState; rust: number }) {
           <TextDecal
             text={d.text}
             heightM={d.ts * H}
-            position={[(d.tx - 0.5) * L, (0.5 - d.ty) * H, t / 2 + 0.0004]}
-            onPointerDown={dragText}
+            fontId={d.font}
+            position={[(tx - 0.5) * L, (0.5 - ty) * H, t / 2 + 0.0004]}
+            onPointerDown={startDrag('text')}
           />
           <TextDecal
             text={d.nr}
             heightM={d.ns * H}
-            position={[(d.nx - 0.5) * L, (0.5 - d.ny) * H, t / 2 + 0.0004]}
-            onPointerDown={dragNr}
+            fontId={d.font}
+            position={[(nx - 0.5) * L, (0.5 - ny) * H, t / 2 + 0.0004]}
+            onPointerDown={startDrag('nr')}
           />
+          {dragging && (
+            <CenterGuides
+              snapX={activeSnap.x ?? false}
+              snapY={activeSnap.y ?? false}
+              w={L}
+              h={H}
+              position={[0, 0, t / 2 + 0.0012]}
+            />
+          )}
         </>
       )}
     </group>
