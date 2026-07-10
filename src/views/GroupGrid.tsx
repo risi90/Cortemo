@@ -71,19 +71,78 @@ function Cell({
   )
 }
 
-export function GroupGrid({ onPick }: { onPick: (id: GroupId) => void }) {
+export function GroupGrid({
+  onPick,
+  onConfigurator,
+}: {
+  onPick: (id: GroupId) => void
+  onConfigurator: () => void
+}) {
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-16 md:pt-24">
-      <p className="text-[12px] font-semibold uppercase tracking-[.2em] text-rust">
-        Cortemo Collecties
-      </p>
-      <h1 className="serif mt-5 max-w-3xl text-[34px] leading-[1.0] tracking-[-.03em] text-white sm:text-[40px] md:text-[56px]">
-        Ontdek onze <em className="text-white/50">collecties.</em>
-      </h1>
-      <p className="mt-5 max-w-md text-[15px] leading-relaxed text-white/60">
-        Standaard formaten, vaste prijzen, geleverd binnen acht werkdagen. Alles naadloos gelast uit
-        3 mm cortenstaal.
-      </p>
+    <div className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6 sm:pb-20 sm:pt-8">
+      {/* video-hero met het configurator-blok over de achtergrondvideo */}
+      <section className="on-media relative -mt-24 overflow-hidden rounded-3xl sm:-mt-28 md:-mt-32">
+        <video
+          className="absolute inset-0 h-full w-full object-cover"
+          poster="/img/plantenbak.webp"
+          autoPlay
+          muted
+          loop
+          playsInline
+          aria-hidden
+          // React zet het muted-attribuut niet altijd in de DOM; autoplay-beleid
+          // vereist het wél, dus we forceren het en starten expliciet.
+          ref={(el) => {
+            if (el) {
+              el.muted = true
+              void el.play().catch(() => {})
+            }
+          }}
+        >
+          <source src="/video/hero.webm" type="video/webm" />
+          <source src="/video/hero.mp4" type="video/mp4" />
+        </video>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/35 to-black/25" />
+        <div className="relative z-10 px-6 pb-14 pt-36 sm:px-10 sm:pb-16 sm:pt-44 md:px-14 md:pt-52 lg:pb-20">
+          <p className="text-[12px] font-semibold uppercase tracking-[.2em] text-white/70">
+            Maatwerk cortenstaal
+          </p>
+          <h1 className="serif mt-4 max-w-2xl text-[36px] leading-[1.02] tracking-[-.03em] text-white sm:text-[46px] md:text-[58px]">
+            Tot op de millimeter, <em className="text-white/60">naadloos gelast.</em>
+          </h1>
+          <p className="mt-4 max-w-md text-[15px] leading-relaxed text-white/75">
+            Ontwerp je plantenbak, keerwand of schutting in 3D en zie direct wat hij kost.
+            Geleverd door heel Nederland en Belgi&euml;.
+          </p>
+          <div className="mt-7 flex flex-wrap items-center gap-3">
+            <button
+              onClick={onConfigurator}
+              className="flex items-center gap-2 rounded-xl bg-rust px-6 py-3.5 text-[15px] font-semibold text-white transition-colors hover:bg-rust-deep"
+            >
+              Start de configurator <ArrowRight size={16} strokeWidth={2} />
+            </button>
+            <a
+              href="#collecties"
+              className="rounded-xl bg-white/15 px-6 py-3.5 text-[15px] font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/25"
+            >
+              Bekijk de collecties
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <div id="collecties" className="pt-12 sm:pt-16 md:pt-20">
+        <p className="text-[12px] font-semibold uppercase tracking-[.2em] text-rust">
+          Cortemo Collecties
+        </p>
+        <h2 className="serif mt-5 max-w-3xl text-[34px] leading-[1.0] tracking-[-.03em] text-white sm:text-[40px] md:text-[56px]">
+          Ontdek onze <em className="text-white/50">collecties.</em>
+        </h2>
+        <p className="mt-5 max-w-md text-[15px] leading-relaxed text-white/60">
+          Standaard formaten, vaste prijzen, geleverd binnen acht werkdagen. Alles naadloos gelast
+          uit 3 mm cortenstaal.
+        </p>
+      </div>
       <div className="mt-10 grid auto-rows-[200px] grid-cols-1 gap-4 sm:mt-14 sm:auto-rows-[220px] sm:grid-cols-2 md:grid-cols-3">
         <Cell g={GROUPS[0]} extra="sm:col-span-2 md:row-span-2" big onPick={onPick} />
         <Cell g={GROUPS[1]} extra="" big={false} onPick={onPick} />

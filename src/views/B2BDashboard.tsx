@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import {
   ChevronLeft,
   FileUp,
   FolderOpen,
+  Handshake,
   LayoutDashboard,
   Package,
   Ruler,
@@ -10,6 +12,12 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { euro } from '../data/catalog'
+import {
+  getActivePartner,
+  hasBackend,
+  signInPartner,
+  signOutPartner,
+} from '../lib/adminStore'
 
 const NAV_ITEMS: [string, LucideIcon][] = [
   ['Dashboard', LayoutDashboard],
@@ -61,6 +69,75 @@ function QuickAction({
   )
 }
 
+function PartnerLogin({ onDone }: { onDone: () => void }) {
+  const [email, setEmail] = useState('')
+  const [pw, setPw] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    setBusy(true)
+    setError('')
+    const result = await signInPartner(email, pw)
+    setBusy(false)
+    if (result.partner) onDone()
+    else setError(result.error || 'Inloggen mislukt.')
+  }
+
+  const field =
+    'w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[16px] font-medium text-white outline-none transition placeholder:text-white/30 focus:border-rust sm:text-[14px]'
+
+  return (
+    <div className="mx-auto flex max-w-md flex-col pt-6">
+      <div className="liquid-glass rounded-2xl p-6 text-white sm:p-8">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-rust">
+          <Handshake size={18} strokeWidth={2} />
+        </span>
+        <h1 className="mt-4 text-[22px] font-extrabold tracking-[-.02em]">B2B Partner login</h1>
+        <p className="mt-1 text-[13px] leading-relaxed text-white/50">
+          {hasBackend
+            ? 'Log in met je partneraccount voor jouw prijzen en projecten.'
+            : 'Demo: log in met een partner-e-mailadres (bijv. jan@groenwerk.nl), wachtwoord vrij.'}
+        </p>
+        <div className="mt-5 space-y-4">
+          <input
+            type="email"
+            placeholder="E-mailadres"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={field}
+          />
+          <input
+            type="password"
+            placeholder="Wachtwoord"
+            autoComplete="current-password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void submit()}
+            className={field}
+          />
+          {error && <p className="text-[13px] font-medium text-rust">{error}</p>}
+          <button
+            onClick={() => void submit()}
+            disabled={busy}
+            className="w-full rounded-xl bg-rust py-3 text-[14px] font-semibold text-white transition-colors hover:bg-rust-deep disabled:opacity-60"
+          >
+            {busy ? 'Bezig…' : 'Inloggen'}
+          </button>
+          <p className="text-center text-[12px] text-white/40">
+            Nog geen partner? Mail{' '}
+            <a href="mailto:hallo@cortemo.nl" className="text-rust">
+              hallo@cortemo.nl
+            </a>{' '}
+            voor een zakelijk account.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function B2BDashboard({
   onShop,
   onConfigure,
@@ -68,14 +145,41 @@ export function B2BDashboard({
   onShop: () => void
   onConfigure: () => void
 }) {
+  const [partner, setPartner] = useState(getActivePartner)
+
+  if (!partner) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pb-20 sm:pt-10">
+        <button
+          onClick={onShop}
+          className="flex items-center gap-1.5 text-[13px] font-semibold text-white/50 transition-colors hover:text-white"
+        >
+          <ChevronLeft size={15} strokeWidth={2} /> Terug naar de webshop
+        </button>
+        <PartnerLogin onDone={() => setPartner(getActivePartner())} />
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pb-20 sm:pt-10">
-      <button
-        onClick={onShop}
-        className="flex items-center gap-1.5 text-[13px] font-semibold text-white/50 transition-colors hover:text-white"
-      >
-        <ChevronLeft size={15} strokeWidth={2} /> Terug naar de webshop
-      </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          onClick={onShop}
+          className="flex items-center gap-1.5 text-[13px] font-semibold text-white/50 transition-colors hover:text-white"
+        >
+          <ChevronLeft size={15} strokeWidth={2} /> Terug naar de webshop
+        </button>
+        <button
+          onClick={() => {
+            signOutPartner()
+            setPartner(null)
+          }}
+          className="text-[12px] font-semibold text-white/40 transition-colors hover:text-white"
+        >
+          Uitloggen
+        </button>
+      </div>
 
       <div className="mt-6 flex flex-col gap-6 lg:flex-row">
         {/* zijbalk: op mobiel een horizontale tab-rij */}
@@ -108,11 +212,11 @@ export function B2BDashboard({
                 B2B Professionals Portal
               </p>
               <h1 className="serif mt-1 text-[28px] leading-[1.05] tracking-[-.02em] text-white sm:text-[34px]">
-                Welkom terug, Groenwerk Hoveniers
+                Welkom terug, {partner.company.replace(/ B\.V\.$/, '')}
               </h1>
             </div>
             <span className="rounded-full border border-rust/40 bg-rust/10 px-4 py-2 text-[13px] font-semibold text-rust">
-              Jouw B2B-voordeel: 15%
+              Jouw B2B-voordeel: {partner.discount}%
             </span>
           </div>
 

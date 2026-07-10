@@ -122,7 +122,10 @@ export function CortemoNav({
       </div>
 
       <span className="ml-auto flex items-center gap-1.5">
-        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        {/* thema-switcher: op desktop rechts in de balk, op mobiel in het menu */}
+        <span className="hidden md:block">
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        </span>
         {active !== 'Configurator' && cta('hidden px-4 py-2 sm:flex md:px-5')}
       </span>
 
@@ -143,6 +146,20 @@ export function CortemoNav({
             </a>
           ))}
           {active !== 'Configurator' && cta('mt-1 w-full justify-center px-4 py-3 font-semibold')}
+          <button
+            onClick={onToggleTheme}
+            className="mt-1 flex items-center gap-2.5 rounded-xl border-t border-ink/5 px-4 py-3 text-[14px] font-medium text-ink/70 transition-colors hover:bg-ink/5"
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun size={15} strokeWidth={2} /> Lichte weergave
+              </>
+            ) : (
+              <>
+                <Moon size={15} strokeWidth={2} /> Donkere weergave
+              </>
+            )}
+          </button>
         </div>
       )}
     </nav>

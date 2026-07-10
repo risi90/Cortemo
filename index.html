@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#101418" />
+    <meta name="theme-color" content="#ede8df" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,10 +14,11 @@
     <title>Webshop, Cortemo</title>
     <script>
       // Apply theme before first paint to avoid a flash of the wrong theme.
+      // Light is the default; dark only when the visitor chose it earlier.
       (function () {
-        var t = 'dark';
+        var t = 'light';
         try {
-          t = localStorage.getItem('cortemo-theme') === 'light' ? 'light' : 'dark';
+          t = localStorage.getItem('cortemo-theme') === 'dark' ? 'dark' : 'light';
         } catch (e) {}
         document.documentElement.dataset.theme = t;
       })();

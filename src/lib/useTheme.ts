@@ -6,20 +6,20 @@ const STORAGE_KEY = 'cortemo-theme'
 
 function readTheme(): Theme {
   if (typeof document !== 'undefined' && document.documentElement.dataset.theme) {
-    return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
   }
   try {
-    return localStorage.getItem(STORAGE_KEY) === 'light' ? 'light' : 'dark'
+    return localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light'
   } catch {
-    return 'dark'
+    return 'light'
   }
 }
 
 /**
- * Dark is the default; the light theme is a warm greige. The choice is
- * persisted in localStorage and applied to <html data-theme> so the shared
- * theme CSS can scope on it. The inline script in index.html sets the initial
- * value before first paint; this hook keeps React in sync and toggles it.
+ * Light (warm greige) is the default; dark is the opt-in alternative. The
+ * choice is persisted in localStorage and applied to <html data-theme> so the
+ * shared theme CSS can scope on it. The inline script in index.html sets the
+ * initial value before first paint; this hook keeps React in sync.
  */
 export function useTheme(): [Theme, () => void] {
   const [theme, setTheme] = useState<Theme>(readTheme)

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ChevronLeft,
   FileText,
@@ -16,19 +16,27 @@ import type { LucideIcon } from 'lucide-react'
 import { euro, GROUPS, PRODUCTS } from '../data/catalog'
 import { PRICING } from '../data/configuratorSchema'
 import {
+  fetchMailings,
+  fetchOrders,
+  fetchPartners,
+  fetchPricing,
+  fetchQuotes,
   getMailings,
   getOrders,
   getPartners,
   getPricing,
   getQuotes,
+  hasBackend,
   isAdminAuthed,
   resetPricing,
-  saveMailing,
   savePricing,
-  setAdminAuthed,
+  sendMailing,
   setOrderStatus,
   setPartnerDiscount,
   setQuoteHandled,
+  signInAdmin,
+  signOutAdmin,
+  updateProduct,
   type Order,
   type OrderStatus,
 } from '../lib/adminStore'
@@ -170,6 +178,9 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
 
 function Quotes() {
   const [quotes, setQuotes] = useState(getQuotes)
+  useEffect(() => {
+    void fetchQuotes().then(setQuotes)
+  }, [])
   return (
     <Card title="Offerte-aanvragen" aside={<span className="text-[12px] text-white/40">{quotes.length} totaal</span>}>
       {quotes.length === 0 ? (
@@ -205,23 +216,69 @@ function Quotes() {
 }
 
 function Products() {
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [savedId, setSavedId] = useState<string | null>(null)
+
+  const save = async (id: string) => {
+    const price = parseFloat(drafts[id])
+    if (isNaN(price) || price <= 0) return
+    const ok = await updateProduct(id, { price })
+    if (ok) {
+      const product = PRODUCTS.find((p) => p.id === id)
+      if (product) product.price = price
+      setDrafts((d) => {
+        const { [id]: _removed, ...rest } = d
+        return rest
+      })
+      setSavedId(id)
+      setTimeout(() => setSavedId(null), 1500)
+    }
+  }
+
   return (
     <Card
       title="Producten"
-      aside={<span className="text-[12px] text-white/40">bron: src/data/catalog.ts</span>}
+      aside={
+        <span className="text-[12px] text-white/40">
+          {hasBackend ? 'live gekoppeld aan de database' : 'bron: src/data/catalog.ts'}
+        </span>
+      }
     >
       <ul className="divide-y divide-white/5">
         {PRODUCTS.map((p) => (
-          <li key={p.id} className="flex items-baseline gap-3 py-2.5 text-[13px]">
+          <li key={p.id} className="flex items-center gap-3 py-2.5 text-[13px]">
             <span className="min-w-0 flex-1 truncate font-semibold">{p.name}</span>
             <span className="hidden text-white/45 sm:block">{p.sub}</span>
-            <span className="font-bold tabular-nums">{euro(p.price)}</span>
+            {hasBackend ? (
+              <span className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="1"
+                  value={drafts[p.id] ?? String(p.price)}
+                  onChange={(e) => setDrafts((d) => ({ ...d, [p.id]: e.target.value }))}
+                  aria-label={'Prijs van ' + p.name}
+                  className="w-24 rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-right text-[13px] font-semibold tabular-nums text-white outline-none focus:border-rust"
+                />
+                {drafts[p.id] !== undefined && drafts[p.id] !== String(p.price) && (
+                  <button
+                    onClick={() => void save(p.id)}
+                    className="rounded-lg bg-rust px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-rust-deep"
+                  >
+                    Opslaan
+                  </button>
+                )}
+                {savedId === p.id && <span className="text-[12px] font-semibold text-ok">✓</span>}
+              </span>
+            ) : (
+              <span className="font-bold tabular-nums">{euro(p.price)}</span>
+            )}
           </li>
         ))}
       </ul>
       <p className="mt-4 text-[12px] text-white/40">
-        Producten bewerken gebeurt nu nog in de catalogus-code; de volgende stap is deze lijst aan
-        een database/CMS te koppelen zodat je hier prijzen en teksten direct aanpast.
+        {hasBackend
+          ? 'Prijswijzigingen gaan direct de database in en zijn meteen zichtbaar in de shop.'
+          : 'Zonder gekoppelde database is deze lijst alleen-lezen. Koppel Supabase (zie supabase/migrations) om prijzen en teksten hier direct te bewerken.'}
       </p>
     </Card>
   )
@@ -250,6 +307,9 @@ function Collections() {
 function ConfiguratorSettings() {
   const [settings, setSettings] = useState(getPricing)
   const [saved, setSaved] = useState(false)
+  useEffect(() => {
+    void fetchPricing().then(setSettings)
+  }, [])
 
   const FIELDS: [keyof typeof settings, string, string][] = [
     ['steelPerKg', 'Staalprijs per kg', 'incl. snijverlies en marge'],
@@ -321,6 +381,9 @@ function ConfiguratorSettings() {
 
 function Partners() {
   const [partners, setPartners] = useState(getPartners)
+  useEffect(() => {
+    void fetchPartners().then(setPartners)
+  }, [])
   return (
     <Card title="B2B-partners" aside={<span className="text-[12px] text-white/40">{partners.length} actief</span>}>
       <ul className="divide-y divide-white/5">
@@ -357,19 +420,21 @@ function Mailings() {
   const [body, setBody] = useState('')
   const [audience, setAudience] = useState('Alle klanten')
   const [sent, setSent] = useState(false)
+  const [error, setError] = useState('')
 
-  const send = () => {
+  useEffect(() => {
+    void fetchMailings().then(setMailings)
+  }, [])
+
+  const send = async () => {
     if (!subject.trim() || !body.trim()) return
-    const recipients = audience === 'B2B-partners' ? getPartners().length : 248
-    saveMailing({
-      id: 'ML-' + String(Date.now()).slice(-6),
-      date: new Date().toISOString(),
-      subject,
-      body,
-      audience,
-      recipients,
-    })
-    setMailings(getMailings())
+    setError('')
+    const result = await sendMailing(subject, body, audience)
+    if (result.error) {
+      setError(result.error)
+      return
+    }
+    setMailings(await fetchMailings())
     setSubject('')
     setBody('')
     setSent(true)
@@ -405,13 +470,18 @@ function Mailings() {
           </div>
           <textarea
             rows={5}
-            placeholder="Schrijf je bericht… (mailings worden in deze demo-fase gelogd, nog niet echt verstuurd)"
+            placeholder={
+              hasBackend
+                ? 'Schrijf je bericht… wordt via Resend verstuurd aan de gekozen doelgroep.'
+                : 'Schrijf je bericht… (zonder gekoppelde backend wordt de mailing alleen gelogd)'
+            }
             value={body}
             onChange={(e) => setBody(e.target.value)}
             className={field + ' resize-none'}
           />
+          {error && <p className="text-[13px] font-medium text-rust">{error}</p>}
           <button
-            onClick={send}
+            onClick={() => void send()}
             className={
               'flex items-center gap-2 rounded-xl px-5 py-2.5 text-[14px] font-semibold text-white transition-all ' +
               (sent ? 'bg-ok' : 'bg-rust hover:bg-rust-deep')
@@ -446,8 +516,23 @@ function Mailings() {
 function Login({ onAuthed }: { onAuthed: () => void }) {
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
-  const [tried, setTried] = useState(false)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
   const valid = /\S+@\S+\.\S+/.test(email) && pw.length >= 4
+
+  const submit = async () => {
+    if (!valid) {
+      setError('Vul een geldig e-mailadres en wachtwoord (4+ tekens) in.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    const result = await signInAdmin(email, pw)
+    setBusy(false)
+    if (result.ok) onAuthed()
+    else setError(result.error || 'Inloggen mislukt.')
+  }
+
   return (
     <div className="mx-auto flex max-w-md flex-col px-4 pb-20 pt-16 sm:px-6">
       <div className="liquid-glass rounded-2xl p-6 text-white sm:p-8">
@@ -456,7 +541,9 @@ function Login({ onAuthed }: { onAuthed: () => void }) {
         </span>
         <h1 className="mt-4 text-[22px] font-extrabold tracking-[-.02em]">Cortemo Beheer</h1>
         <p className="mt-1 text-[13px] text-white/50">
-          Demo-omgeving: elk e-mailadres met een wachtwoord van 4+ tekens werkt.
+          {hasBackend
+            ? 'Log in met je beheeraccount (Supabase-auth).'
+            : 'Demo-omgeving: elk e-mailadres met een wachtwoord van 4+ tekens werkt.'}
         </p>
         <div className="mt-5 space-y-4">
           <input
@@ -473,25 +560,16 @@ function Login({ onAuthed }: { onAuthed: () => void }) {
             autoComplete="current-password"
             value={pw}
             onChange={(e) => setPw(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && valid && (setAdminAuthed(true), onAuthed())}
+            onKeyDown={(e) => e.key === 'Enter' && void submit()}
             className={field}
           />
-          {tried && !valid && (
-            <p className="text-[13px] font-medium text-rust">
-              Vul een geldig e-mailadres en wachtwoord (4+ tekens) in.
-            </p>
-          )}
+          {error && <p className="text-[13px] font-medium text-rust">{error}</p>}
           <button
-            onClick={() => {
-              setTried(true)
-              if (valid) {
-                setAdminAuthed(true)
-                onAuthed()
-              }
-            }}
-            className="w-full rounded-xl bg-rust py-3 text-[14px] font-semibold text-white transition-colors hover:bg-rust-deep"
+            onClick={() => void submit()}
+            disabled={busy}
+            className="w-full rounded-xl bg-rust py-3 text-[14px] font-semibold text-white transition-colors hover:bg-rust-deep disabled:opacity-60"
           >
-            Inloggen
+            {busy ? 'Bezig…' : 'Inloggen'}
           </button>
         </div>
       </div>
@@ -504,6 +582,10 @@ export function Admin({ onExit }: { onExit: () => void }) {
   const [section, setSection] = useState<SectionId>('dashboard')
   const [orders, setOrders] = useState(getOrders)
   const title = useMemo(() => SECTIONS.find(([id]) => id === section)![1], [section])
+
+  useEffect(() => {
+    if (authed) void fetchOrders().then(setOrders)
+  }, [authed])
 
   if (!authed) return <Login onAuthed={() => setAuthed(true)} />
 
@@ -518,7 +600,7 @@ export function Admin({ onExit }: { onExit: () => void }) {
         </button>
         <button
           onClick={() => {
-            setAdminAuthed(false)
+            signOutAdmin()
             setAuthed(false)
           }}
           className="text-[12px] font-semibold text-white/40 transition-colors hover:text-white"

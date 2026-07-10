@@ -22,6 +22,42 @@ export type Product = {
   options: [string, number][]
 }
 
+/**
+ * Vervangt de statische catalogus door rijen uit de database (Supabase).
+ * Muteert de arrays in place zodat alle views dezelfde referentie houden;
+ * de App bumpt daarna één keer zijn state om opnieuw te renderen.
+ */
+export function hydrateCatalog(
+  rows: {
+    id: string
+    group_id: string
+    sub: string
+    name: string
+    dims: string
+    img: string
+    price: number
+    descr: string
+    variants: [string, number][]
+    options: [string, number][]
+  }[],
+): void {
+  const next: Product[] = rows
+    .filter((r) => GROUPS.some((g) => g.id === r.group_id))
+    .map((r) => ({
+      id: r.id,
+      group: r.group_id as GroupId,
+      sub: r.sub,
+      name: r.name,
+      dims: r.dims,
+      img: r.img,
+      price: Number(r.price),
+      desc: r.descr,
+      variants: r.variants,
+      options: r.options,
+    }))
+  if (next.length) PRODUCTS.splice(0, PRODUCTS.length, ...next)
+}
+
 export const euro = (v: number): string =>
   '€ ' +
   v.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })

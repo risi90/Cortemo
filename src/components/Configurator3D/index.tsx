@@ -15,6 +15,7 @@ import { useConfiguratorStore, type CameraViewName } from '../../store/configura
 import { CONFIG_TYPES, configType, type DimensionKey } from '../../data/configuratorSchema'
 import { calcPrice, type ConfigState } from '../../lib/pricing'
 import { euro } from '../../data/catalog'
+import { getActivePartner } from '../../lib/adminStore'
 import type { CartItem } from '../../lib/cart'
 
 /* ---------- config ↔ URL (delen & hervatten) ---------- */
@@ -154,6 +155,7 @@ export default function Configurator3D({
   const [added, setAdded] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showBreakdown, setShowBreakdown] = useState(false)
+  const partner = getActivePartner()
 
   // configuratie uit de URL hervatten (gedeelde links)
   useEffect(() => {
@@ -398,6 +400,16 @@ export default function Configurator3D({
                 {euro(price.total)}
               </div>
             </div>
+            {partner && (
+              <div className="mt-2 flex items-center justify-between rounded-lg border border-rust/30 bg-rust/10 px-3 py-2">
+                <span className="text-[12px] font-semibold text-white/80">
+                  Jouw partnerprijs ({partner.discount}% korting)
+                </span>
+                <span className="text-[15px] font-extrabold tabular-nums text-rust">
+                  {euro(price.total * (1 - partner.discount / 100))}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2">

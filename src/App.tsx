@@ -12,8 +12,9 @@ import { Configurator } from './views/Configurator'
 import { Checkout } from './views/Checkout'
 import { Story } from './views/Story'
 import { Admin } from './views/Admin'
-import { GROUPS, PRODUCTS, type GroupId } from './data/catalog'
+import { GROUPS, hydrateCatalog, PRODUCTS, type GroupId } from './data/catalog'
 import { ACCELERATOR, cartCount, type CartItem } from './lib/cart'
+import { fetchDbProducts, fetchPricing } from './lib/adminStore'
 import { useTheme } from './lib/useTheme'
 
 type Page = 'inspiratie' | 'b2b' | 'maatwerk' | 'checkout' | 'verhaal' | 'admin'
@@ -137,6 +138,18 @@ export function App() {
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
+  // Catalogus en tarieven uit de backend laden (no-op zonder configuratie).
+  const [, setCatalogVersion] = useState(0)
+  useEffect(() => {
+    void fetchDbProducts().then((rows) => {
+      if (rows) {
+        hydrateCatalog(rows)
+        setCatalogVersion((v) => v + 1)
+      }
+    })
+    void fetchPricing()
+  }, [])
+
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [nav.view, nav.groupId, nav.productId])
@@ -198,7 +211,9 @@ export function App() {
           onConfigurator={() => openPage('maatwerk')}
           onOpenCart={() => setCartOpen(true)}
         />
-        {nav.view === 'root' && <GroupGrid onPick={openList} />}
+        {nav.view === 'root' && (
+          <GroupGrid onPick={openList} onConfigurator={() => openPage('maatwerk')} />
+        )}
         {nav.view === 'list' && (
           <ProductList
             groupId={nav.groupId}
