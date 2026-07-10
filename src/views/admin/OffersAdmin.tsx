@@ -9,6 +9,7 @@ import {
   getQuotes,
   offerTotal,
   saveOffer,
+  saveOrder,
   sendOffer,
   setQuoteHandled,
   type Offer,
@@ -182,6 +183,31 @@ export function OffersAdmin({ draft, onDraftUsed }: { draft: OfferDraft | null; 
   const [quotes, setQuotes] = useState(getQuotes)
   const [composing, setComposing] = useState(!!draft)
   const [sendErr, setSendErr] = useState('')
+  const [converted, setConverted] = useState<Record<string, string>>({})
+
+  // geaccepteerde offerte omzetten naar een order (regels 1-op-1 mee)
+  const toOrder = (offer: Offer) => {
+    const orderId = 'CM-' + String(Date.now()).slice(-6)
+    saveOrder({
+      id: orderId,
+      date: new Date().toISOString(),
+      name: offer.customer,
+      email: offer.email,
+      city: '',
+      address: '',
+      items: offer.lines.map((l) => ({
+        name: l.descr,
+        qty: l.qty,
+        unitPrice: l.price * (1 - offer.discount),
+        config: [],
+      })),
+      total: offer.total,
+      discountCode: offer.discount > 0 ? 'offerte ' + Math.round(offer.discount * 100) + '%' : '',
+      discountAmount: Math.round(offer.lines.reduce((s, l) => s + l.price * l.qty, 0) * offer.discount * 100) / 100,
+      status: 'nieuw',
+    })
+    setConverted((s) => ({ ...s, [offer.id]: orderId }))
+  }
 
   useEffect(() => {
     void fetchOffers().then(setOffers)
@@ -289,6 +315,19 @@ export function OffersAdmin({ draft, onDraftUsed }: { draft: OfferDraft | null; 
                       Markeer geaccepteerd
                     </button>
                   )}
+                  {o.status === 'geaccepteerd' &&
+                    (converted[o.id] ? (
+                      <span className="text-[12px] font-semibold text-ok">
+                        → order {converted[o.id]}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => toOrder(o)}
+                        className="rounded-lg bg-ok px-2.5 py-1.5 text-[12px] font-semibold text-white hover:brightness-110"
+                      >
+                        Zet om naar order
+                      </button>
+                    ))}
                   <button
                     onClick={() => setOffers(deleteOffer(o.id))}
                     aria-label={'Verwijder ' + o.id}
