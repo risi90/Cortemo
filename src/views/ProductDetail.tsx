@@ -8,10 +8,12 @@ export function ProductDetail({
   productId,
   onBack,
   onAdd,
+  onConfigurator,
 }: {
   productId: string
   onBack: () => void
   onAdd: (item: Omit<CartItem, 'qty'>) => void
+  onConfigurator: () => void
 }) {
   const p = PRODUCTS.find((x) => x.id === productId)!
   const [variant, setVariant] = useState(0)
@@ -46,7 +48,7 @@ export function ProductDetail({
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+    <div className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-6 sm:pt-10 lg:pb-10">
       <button
         onClick={onBack}
         className="flex items-center gap-1.5 text-[13px] font-semibold text-white/50 transition-colors hover:text-white"
@@ -71,7 +73,7 @@ export function ProductDetail({
                 {p.sub}
               </div>
               <h1 className="serif mt-1.5 text-[26px] leading-[1.05] tracking-[-.02em]">{p.name}</h1>
-              <p className="mt-2 text-[13px] leading-relaxed text-white/60">{p.desc}</p>
+              <p className="mt-2 text-[14px] leading-relaxed text-white/60">{p.desc}</p>
             </div>
 
             <div>
@@ -149,9 +151,9 @@ export function ProductDetail({
           </div>
 
           {/* upsell naar configurator */}
-          <a
-            href="#"
-            className="liquid-glass mt-4 flex flex-wrap items-center gap-4 rounded-2xl p-5 text-white transition-all hover:-translate-y-0.5"
+          <button
+            onClick={onConfigurator}
+            className="liquid-glass mt-4 flex w-full flex-wrap items-center gap-4 rounded-2xl p-5 text-left text-white transition-all hover:-translate-y-0.5"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-rust">
               <Ruler size={18} strokeWidth={2} />
@@ -167,8 +169,33 @@ export function ProductDetail({
             <span className="whitespace-nowrap text-[13px] font-semibold text-rust">
               Naar de 3D Configurator &rarr;
             </span>
-          </a>
+          </button>
         </div>
+      </div>
+
+      {/* sticky koopbalk op mobiel: prijs + CTA altijd in beeld */}
+      <div className="liquid-glass fixed inset-x-3 bottom-3 z-30 flex items-center justify-between gap-3 rounded-2xl p-3 pl-5 text-white lg:hidden">
+        <div>
+          <div className="text-[11px] text-white/55">Totaal incl. btw</div>
+          <div className="text-[18px] font-extrabold leading-tight tabular-nums">{euro(total)}</div>
+        </div>
+        <button
+          onClick={add}
+          className={
+            'flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-5 py-3 text-[14px] font-semibold text-white transition-all ' +
+            (added ? 'bg-ok' : 'bg-rust hover:bg-rust-deep active:scale-[.99]')
+          }
+        >
+          {added ? (
+            <>
+              <Check size={15} strokeWidth={2} /> Toegevoegd
+            </>
+          ) : (
+            <>
+              <ShoppingCart size={15} strokeWidth={2} /> In winkelwagen
+            </>
+          )}
+        </button>
       </div>
     </div>
   )

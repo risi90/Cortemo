@@ -61,7 +61,13 @@ function QuickAction({
   )
 }
 
-export function B2BDashboard({ onShop }: { onShop: () => void }) {
+export function B2BDashboard({
+  onShop,
+  onConfigure,
+}: {
+  onShop: () => void
+  onConfigure: () => void
+}) {
   return (
     <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pb-20 sm:pt-10">
       <button
@@ -115,11 +121,13 @@ export function B2BDashboard({ onShop }: { onShop: () => void }) {
               icon={Ruler}
               title="Nieuw maatwerk starten"
               sub="Ontwerp tot op de millimeter in de 3D-configurator."
+              onClick={onConfigure}
             />
             <QuickAction
               icon={FileUp}
               title="Eigen DXF uploaden"
               sub="Upload je tekening en ontvang direct een calculatie."
+              onClick={onConfigure}
             />
             <QuickAction
               icon={Store}
@@ -164,7 +172,7 @@ export function B2BDashboard({ onShop }: { onShop: () => void }) {
                   </span>
                   <span className="text-[13px] font-bold tabular-nums text-white md:text-right">
                     {euro(p.total)}
-                    <span className="ml-1 text-[11px] font-medium text-white/40">excl. btw</span>
+                    <span className="ml-1 text-[11px] font-medium text-white/55">excl. btw</span>
                   </span>
                   <span className="mt-1 flex items-center gap-2 md:mt-0 md:justify-end">
                     <a

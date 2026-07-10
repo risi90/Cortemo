@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import {
   euro,
@@ -10,17 +10,26 @@ import {
 } from '../data/catalog'
 import { ProductImage } from '../components/ProductImage'
 
+/** Vaste hoogte per product, zodat het masonry-ritme niet verspringt bij filteren. */
+const CARD_HEIGHTS = ['h-80', 'h-60', 'h-72']
+const cardHeight = (id: string) => CARD_HEIGHTS[id.charCodeAt(0) % CARD_HEIGHTS.length]
+
 export function ProductList({
   groupId,
+  initialSub,
   onBack,
   onPick,
 }: {
   groupId: GroupId
+  /** Voorgeselecteerde subcategorie, bijv. vanuit "Shop deze look". */
+  initialSub?: string
   onBack: () => void
   onPick: (id: string) => void
 }) {
   const group = GROUPS.find((g) => g.id === groupId)!
-  const [sub, setSub] = useState('Alles')
+  const validSub = (s?: string) => (s && SUBCATS[groupId].includes(s) ? s : 'Alles')
+  const [sub, setSub] = useState(validSub(initialSub))
+  useEffect(() => setSub(validSub(initialSub)), [groupId, initialSub]) // eslint-disable-line react-hooks/exhaustive-deps
   const subs = ['Alles', ...SUBCATS[groupId]]
   const items = PRODUCTS.filter(
     (p) => p.group === groupId && (sub === 'Alles' || p.sub === sub),
@@ -60,13 +69,10 @@ export function ProductList({
       </div>
 
       <div className="mt-10 grid grid-cols-1 items-start gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((p, i) => (
+        {items.map((p) => (
           <button key={p.id} onClick={() => onPick(p.id)} className="group text-left">
             <div
-              className={
-                'relative overflow-hidden rounded-2xl bg-white/[.04] ' +
-                (i % 3 === 0 ? 'h-80' : i % 3 === 1 ? 'h-60' : 'h-72')
-              }
+              className={'relative overflow-hidden rounded-2xl bg-white/[.04] ' + cardHeight(p.id)}
             >
               <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
                 <ProductImage src={GROUP_IMG[p.group]} label={p.name} radius={0} />
@@ -78,10 +84,10 @@ export function ProductList({
             <div className="mt-3.5 flex items-baseline justify-between gap-3 px-1">
               <div>
                 <div className="text-[15px] font-bold text-white">{p.name}</div>
-                <div className="text-[12px] text-white/40">{p.dims}</div>
+                <div className="text-[12px] text-white/55">{p.dims}</div>
               </div>
               <div className="shrink-0 whitespace-nowrap text-right">
-                <span className="text-[11px] text-white/40">vanaf </span>
+                <span className="text-[11px] text-white/55">vanaf </span>
                 <span className="text-[14px] font-bold tabular-nums text-white">
                   {euro(p.price)}
                 </span>

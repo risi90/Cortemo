@@ -17,6 +17,7 @@ export function CartDrawer({
   onSetQty,
   onRemove,
   onAddAccelerator,
+  onCheckout,
   onBrowse,
 }: {
   open: boolean
@@ -25,6 +26,7 @@ export function CartDrawer({
   onSetQty: (key: string, qty: number) => void
   onRemove: (key: string) => void
   onAddAccelerator: () => void
+  onCheckout: () => void
   onBrowse: () => void
 }) {
   const [exVat, setExVat] = useState(false)
@@ -121,14 +123,14 @@ export function CartDrawer({
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="text-[14px] font-bold leading-tight">{item.name}</div>
-                        <div className="text-[11px] text-white/40">{item.sub}</div>
+                        <div className="text-[11px] text-white/55">{item.sub}</div>
                       </div>
                       <button
                         onClick={() => onRemove(item.key)}
                         aria-label={'Verwijder ' + item.name}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white/35 transition-colors hover:bg-white/10 hover:text-white"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/40 transition-colors hover:bg-white/10 hover:text-white"
                       >
-                        <Trash2 size={13} strokeWidth={2} />
+                        <Trash2 size={14} strokeWidth={2} />
                       </button>
                     </div>
                     {/* gekozen configuratie */}
@@ -145,9 +147,9 @@ export function CartDrawer({
                         <button
                           onClick={() => onSetQty(item.key, item.qty - 1)}
                           aria-label="Aantal verlagen"
-                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                          className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                         >
-                          <Minus size={12} strokeWidth={2} />
+                          <Minus size={13} strokeWidth={2} />
                         </button>
                         <span className="w-7 text-center text-[13px] font-semibold tabular-nums">
                           {item.qty}
@@ -155,9 +157,9 @@ export function CartDrawer({
                         <button
                           onClick={() => onSetQty(item.key, item.qty + 1)}
                           aria-label="Aantal verhogen"
-                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                          className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                         >
-                          <Plus size={12} strokeWidth={2} />
+                          <Plus size={13} strokeWidth={2} />
                         </button>
                       </div>
                       <div className="text-[14px] font-bold tabular-nums">
@@ -223,7 +225,10 @@ export function CartDrawer({
                   </div>
                 </div>
               </div>
-              <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-rust py-3.5 text-[15px] font-semibold text-white transition-all hover:bg-rust-deep active:scale-[.99]">
+              <button
+                onClick={onCheckout}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-rust py-3.5 text-[15px] font-semibold text-white transition-all hover:bg-rust-deep active:scale-[.99]"
+              >
                 <Lock size={15} strokeWidth={2} /> Veilig afrekenen
               </button>
             </div>

@@ -10,8 +10,9 @@ type Project = {
   title: string
   desc: string
   tag: ProjectTag
-  /** Groep waarnaar "Shop deze look" verwijst. */
+  /** Groep en subcategorie waar "Shop deze look" naartoe verwijst. */
   group: GroupId
+  sub?: string
   img?: string
   icon: LucideIcon
   /** Hoogte van de kaart, voor het editorial masonry-ritme. */
@@ -25,6 +26,7 @@ const PROJECTS: Project[] = [
     desc: 'Twee niveaus, gescheiden door naadloos gelaste keerwanden van 60 cm hoog. Het gazon loopt strak door tot tegen het staal.',
     tag: 'Stadstuinen',
     group: 'hoogte',
+    sub: 'Keerwanden',
     img: GROUP_IMG.hoogte,
     icon: TreePine,
     h: 'h-[420px]',
@@ -35,6 +37,7 @@ const PROJECTS: Project[] = [
     desc: 'Twee kubusbakken van 80 cm flankeren de voordeur, beplant met meerstammige krentenboompjes.',
     tag: 'Voortuinen',
     group: 'planten',
+    sub: 'Plantenbakken',
     img: GROUP_IMG.planten,
     icon: Leaf,
     h: 'h-[300px]',
@@ -45,6 +48,7 @@ const PROJECTS: Project[] = [
     desc: 'Een verdiepte zithoek met de vuurschaal als middelpunt, omzoomd door een cortenstalen borderrand.',
     tag: 'Stadstuinen',
     group: 'vuurwater',
+    sub: 'Vuurschalen',
     img: GROUP_IMG.vuurwater,
     icon: Flame,
     h: 'h-[340px]',
@@ -55,6 +59,7 @@ const PROJECTS: Project[] = [
     desc: 'Veertig meter plantenbakken als windluwe terrasrand, met geïntegreerde parasolvoeten.',
     tag: 'Zakelijk & Horeca',
     group: 'planten',
+    sub: 'Plantenbakken',
     img: GROUP_IMG.planten,
     icon: Leaf,
     h: 'h-[360px]',
@@ -65,6 +70,7 @@ const PROJECTS: Project[] = [
     desc: 'Lichtgewicht bakken op maat rond de dakranden, gecombineerd met een watertafel als middelpunt.',
     tag: 'Zakelijk & Horeca',
     group: 'vuurwater',
+    sub: 'Waterelementen',
     img: GROUP_IMG.vuurwater,
     icon: Flame,
     h: 'h-[300px]',
@@ -75,6 +81,7 @@ const PROJECTS: Project[] = [
     desc: 'Grind, siergrassen en een strak cortenstalen lijnenspel dat het pad naar de voordeur begeleidt.',
     tag: 'Voortuinen',
     group: 'hoogte',
+    sub: 'Borderranden',
     img: GROUP_IMG.hoogte,
     icon: TreePine,
     h: 'h-[280px]',
@@ -85,6 +92,7 @@ const PROJECTS: Project[] = [
     desc: 'Wandpaneel Silva vangt het avondlicht en werpt een boomsilhouet op de witte tuinmuur.',
     tag: 'Stadstuinen',
     group: 'deco',
+    sub: 'Wandkunst',
     icon: TreePine,
     h: 'h-[260px]',
   },
@@ -94,6 +102,7 @@ const PROJECTS: Project[] = [
     desc: 'Drie Verde-moestuinbakken in carré-opstelling, met slakkenrand en geïntegreerde beregening.',
     tag: 'Voortuinen',
     group: 'planten',
+    sub: 'Moestuinbakken',
     img: GROUP_IMG.planten,
     icon: Leaf,
     h: 'h-[320px]',
@@ -107,11 +116,11 @@ const TAGS: ('Alle projecten' | ProjectTag)[] = [
   'Zakelijk & Horeca',
 ]
 
-function ProjectCard({ p, onShop }: { p: Project; onShop: (g: GroupId) => void }) {
+function ProjectCard({ p, onShop }: { p: Project; onShop: (g: GroupId, sub?: string) => void }) {
   const Icon = p.icon
   return (
     <button
-      onClick={() => onShop(p.group)}
+      onClick={() => onShop(p.group, p.sub)}
       className={'group relative mb-4 block w-full overflow-hidden rounded-2xl text-left ' + p.h}
     >
       {p.img ? (
@@ -122,8 +131,8 @@ function ProjectCard({ p, onShop }: { p: Project; onShop: (g: GroupId) => void }
           className="absolute inset-0 h-full w-full select-none object-cover transition-transform duration-700 group-hover:scale-105"
         />
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-[#EAE8E3]">
-          <Icon size={40} strokeWidth={1.5} className="text-ink/25" />
+        <div className="absolute inset-0 flex items-center justify-center bg-white/5">
+          <Icon size={48} strokeWidth={1.25} className="text-rust/30" />
         </div>
       )}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent transition-opacity duration-300 group-hover:opacity-90" />
@@ -145,7 +154,7 @@ function ProjectCard({ p, onShop }: { p: Project; onShop: (g: GroupId) => void }
   )
 }
 
-export function Inspiration({ onShop }: { onShop: (g: GroupId) => void }) {
+export function Inspiration({ onShop }: { onShop: (g: GroupId, sub?: string) => void }) {
   const [tag, setTag] = useState<(typeof TAGS)[number]>('Alle projecten')
   const projects = PROJECTS.filter((p) => tag === 'Alle projecten' || p.tag === tag)
 

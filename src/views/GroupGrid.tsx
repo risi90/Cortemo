@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Shapes } from 'lucide-react'
 import { GROUP_IMG, GROUPS, PRODUCTS, type Group, type GroupId } from '../data/catalog'
 import { ProductImage } from '../components/ProductImage'
 
@@ -20,37 +20,49 @@ function Cell({
     <button
       onClick={() => onPick(g.id)}
       className={
-        'cat-card group relative overflow-hidden rounded-3xl text-left ' +
-        (hasImage ? 'bg-white/[.04] ' : 'is-empty bg-[#EAE8E3] ') +
-        extra
+        'cat-card group relative overflow-hidden rounded-3xl bg-white/[.04] text-left ' + extra
       }
     >
-      <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
-        <ProductImage src={GROUP_IMG[g.id]} label={g.label} radius={0} />
-      </div>
-      {hasImage && (
-        <div className="cat-grad pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+      {hasImage ? (
+        <>
+          <div className="absolute inset-0 transition-transform duration-700 group-hover:scale-105">
+            <ProductImage src={GROUP_IMG[g.id]} label={g.label} radius={0} />
+          </div>
+          <div className="cat-grad pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        </>
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Shapes
+            size={88}
+            strokeWidth={1}
+            className="text-rust/25 transition-transform duration-700 group-hover:scale-110"
+          />
+        </div>
       )}
       <div
         className={
           'pointer-events-none absolute bottom-0 left-0 p-6 md:p-8 ' + (hasImage ? 'on-media' : '')
         }
       >
-        {hasImage && (
-          <div className="text-[11px] font-semibold uppercase tracking-[.16em] text-white/70">
-            {count(g.id)} producten
-          </div>
-        )}
         <div
           className={
-            'mt-1 font-extrabold tracking-[-.02em] ' +
-            (hasImage ? 'text-white ' : 'text-ink ') +
+            'text-[11px] font-semibold uppercase tracking-[.16em] ' +
+            (hasImage ? 'text-white/70' : 'text-white/50')
+          }
+        >
+          {count(g.id)} producten
+        </div>
+        <div
+          className={
+            'mt-1 font-extrabold tracking-[-.02em] text-white ' +
             (big ? 'text-[26px] md:text-[34px]' : 'text-[20px] md:text-[24px]')
           }
         >
           {g.label}
         </div>
-        {hasImage && <div className="mt-0.5 text-[13px] text-white/70">{g.sub}</div>}
+        <div className={'mt-0.5 text-[13px] ' + (hasImage ? 'text-white/70' : 'text-white/50')}>
+          {g.sub}
+        </div>
       </div>
       <span className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-ink opacity-0 shadow-sm transition-all duration-300 group-hover:opacity-100">
         <ArrowRight size={15} strokeWidth={2} />

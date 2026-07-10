@@ -23,35 +23,6 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 30px rgba(0, 0, 0, 0.25);
 }
 
-@keyframes toastIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.toast {
-  animation: toastIn 0.25s ease;
-}
-
-/* categoriekaart: leeg vlak wanneer er geen foto is */
-.cat-card.is-empty .cat-grad {
-  opacity: 0;
-}
-.cat-card.is-empty .cat-cap-eyebrow,
-.cat-card.is-empty .cat-cap-sub {
-  display: none;
-}
-.cat-card.is-empty {
-  background: #eae8e3;
-}
-.cat-card.is-empty .cat-cap-title {
-  color: #1f2937;
-}
-
 /* ============================================================
    Cortemo thema: donker (standaard) en subtiel warm-licht.
    Scope: .page-shell en .cortemo-footer.

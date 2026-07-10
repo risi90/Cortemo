@@ -13,6 +13,10 @@ export type CortemoNavProps = {
   onHome?: () => void
   /** Callback for the "Inspiratie" link. */
   onInspiration?: () => void
+  /** Callback for the "Zakelijk" link (B2B portal). */
+  onB2B?: () => void
+  /** Callback for the configurator call-to-action. */
+  onConfigurator?: () => void
 }
 
 function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }) {
@@ -28,13 +32,22 @@ function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }
   )
 }
 
-export function CortemoNav({ active, theme, onToggleTheme, onHome, onInspiration }: CortemoNavProps) {
+export function CortemoNav({
+  active,
+  theme,
+  onToggleTheme,
+  onHome,
+  onInspiration,
+  onB2B,
+  onConfigurator,
+}: CortemoNavProps) {
   const [open, setOpen] = useState(false)
 
   const links: NavLink[] = [
     { label: 'Assortiment', href: '#', onClick: onHome },
-    { label: 'Ons verhaal', href: '#' },
     { label: 'Inspiratie', href: '#', onClick: onInspiration },
+    { label: 'Zakelijk', href: '?page=b2b', onClick: onB2B },
+    { label: 'Ons verhaal', href: '#' },
   ]
 
   const follow = (l: NavLink) => (e: React.MouseEvent) => {
@@ -45,14 +58,29 @@ export function CortemoNav({ active, theme, onToggleTheme, onHome, onInspiration
     setOpen(false)
   }
 
+  const cta = (extra: string) => (
+    <button
+      onClick={() => {
+        setOpen(false)
+        onConfigurator?.()
+      }}
+      className={
+        'flex items-center gap-2 whitespace-nowrap rounded-xl bg-rust text-sm font-medium text-white transition-colors hover:bg-rust-deep ' +
+        extra
+      }
+    >
+      Start de configurator <ArrowRight size={15} strokeWidth={2} />
+    </button>
+  )
+
   return (
-    <nav className="relative flex w-full items-center gap-2 self-start rounded-2xl bg-white/60 py-2 pl-2 pr-2 shadow-sm backdrop-blur-md sm:w-auto sm:gap-6 sm:pl-4">
-      {/* hamburger, alleen op mobiel */}
+    <nav className="relative flex w-full items-center gap-2 self-start rounded-2xl bg-white/60 py-2 pl-2 pr-2 shadow-sm backdrop-blur-md md:w-auto md:gap-6 md:pl-4">
+      {/* hamburger, op mobiel en smalle tablets */}
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? 'Sluit menu' : 'Open menu'}
         aria-expanded={open}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink transition-colors hover:bg-ink/5 sm:hidden"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink transition-colors hover:bg-ink/5 md:hidden"
       >
         {open ? <X size={17} strokeWidth={2} /> : <Menu size={17} strokeWidth={2} />}
       </button>
@@ -74,7 +102,7 @@ export function CortemoNav({ active, theme, onToggleTheme, onHome, onInspiration
         </span>
       </a>
 
-      <div className="hidden items-center gap-6 sm:flex">
+      <div className="hidden items-center gap-6 md:flex">
         {links.map((l) => (
           <a
             key={l.label}
@@ -92,19 +120,12 @@ export function CortemoNav({ active, theme, onToggleTheme, onHome, onInspiration
 
       <span className="ml-auto flex items-center gap-1.5">
         <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-        {active !== 'Configurator' && (
-          <a
-            href="#"
-            className="hidden items-center gap-2 whitespace-nowrap rounded-xl bg-rust px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rust-deep sm:flex sm:px-5"
-          >
-            Start de configurator <ArrowRight size={15} strokeWidth={2} />
-          </a>
-        )}
+        {active !== 'Configurator' && cta('hidden px-4 py-2 sm:flex md:px-5')}
       </span>
 
       {/* uitklapmenu op mobiel */}
       {open && (
-        <div className="absolute left-0 right-0 top-full z-40 mt-2 flex flex-col gap-1 rounded-2xl bg-white/95 p-2 shadow-lg backdrop-blur-xl sm:hidden">
+        <div className="absolute left-0 right-0 top-full z-40 mt-2 flex flex-col gap-1 rounded-2xl bg-white/95 p-2 shadow-lg backdrop-blur-xl md:hidden">
           {links.map((l) => (
             <a
               key={l.label}
@@ -118,15 +139,7 @@ export function CortemoNav({ active, theme, onToggleTheme, onHome, onInspiration
               {l.label}
             </a>
           ))}
-          {active !== 'Configurator' && (
-            <a
-              href="#"
-              onClick={() => setOpen(false)}
-              className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-rust px-4 py-3 text-[14px] font-semibold text-white transition-colors hover:bg-rust-deep"
-            >
-              Start de configurator <ArrowRight size={15} strokeWidth={2} />
-            </a>
-          )}
+          {active !== 'Configurator' && cta('mt-1 w-full justify-center px-4 py-3 font-semibold')}
         </div>
       )}
     </nav>

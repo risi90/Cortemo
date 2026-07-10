@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ShoppingCart } from 'lucide-react'
 import { CortemoNav } from './components/CortemoNav'
 import { CortemoFooter } from './components/CortemoFooter'
@@ -8,11 +8,62 @@ import { ProductList } from './views/ProductList'
 import { ProductDetail } from './views/ProductDetail'
 import { Inspiration } from './views/Inspiration'
 import { B2BDashboard } from './views/B2BDashboard'
+import { Configurator } from './views/Configurator'
+import { Checkout } from './views/Checkout'
 import { GROUPS, PRODUCTS, type GroupId } from './data/catalog'
 import { ACCELERATOR, cartCount, type CartItem } from './lib/cart'
 import { useTheme } from './lib/useTheme'
 
-type View = 'root' | 'list' | 'pdp' | 'inspiratie' | 'b2b'
+type Page = 'inspiratie' | 'b2b' | 'maatwerk' | 'checkout'
+type View = 'root' | 'list' | 'pdp' | Page
+
+type NavState = {
+  view: View
+  groupId: GroupId
+  productId: string
+  /** Voorgeselecteerde subcategorie voor de productlijst (bijv. vanuit "Shop deze look"). */
+  sub: string | null
+}
+
+const PAGES: Page[] = ['inspiratie', 'b2b', 'maatwerk', 'checkout']
+
+function stateFromLocation(): NavState {
+  const qs = new URLSearchParams(location.search)
+  const cat = qs.get('cat')
+  const page = qs.get('page')
+  const product = PRODUCTS.find((p) => p.id === qs.get('product')) || null
+  const group = GROUPS.some((g) => g.id === cat) ? (cat as GroupId) : null
+
+  const base = { groupId: 'planten' as GroupId, productId: PRODUCTS[0].id, sub: null }
+  if (product) return { ...base, view: 'pdp', groupId: product.group, productId: product.id }
+  if (group) return { ...base, view: 'list', groupId: group }
+  if (PAGES.includes(page as Page)) return { ...base, view: page as Page }
+  return { ...base, view: 'root' }
+}
+
+function urlFor(s: NavState): string {
+  switch (s.view) {
+    case 'root':
+      return location.pathname
+    case 'list':
+      return '?cat=' + s.groupId
+    case 'pdp':
+      return '?product=' + s.productId
+    default:
+      return '?page=' + s.view
+  }
+}
+
+const CART_KEY = 'cortemo-cart'
+
+function readCart(): CartItem[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CART_KEY) || '[]')
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
 
 function Header({
   count,
@@ -21,6 +72,8 @@ function Header({
   onToggleTheme,
   onHome,
   onInspiration,
+  onB2B,
+  onConfigurator,
   onOpenCart,
 }: {
   count: number
@@ -29,6 +82,8 @@ function Header({
   onToggleTheme: () => void
   onHome: () => void
   onInspiration: () => void
+  onB2B: () => void
+  onConfigurator: () => void
   onOpenCart: () => void
 }) {
   return (
@@ -39,6 +94,8 @@ function Header({
         onToggleTheme={onToggleTheme}
         onHome={onHome}
         onInspiration={onInspiration}
+        onB2B={onB2B}
+        onConfigurator={onConfigurator}
       />
       <button
         onClick={onOpenCart}
@@ -58,29 +115,34 @@ function Header({
 
 export function App() {
   const [theme, toggleTheme] = useTheme()
-
-  const qs = new URLSearchParams(location.search)
-  const catParam = qs.get('cat')
-  const productParam = qs.get('product')
-  const pageParam = qs.get('page')
-  const initGroup = GROUPS.some((g) => g.id === catParam) ? (catParam as GroupId) : null
-  const initProduct = PRODUCTS.some((p) => p.id === productParam) ? productParam : null
-  const initPage = pageParam === 'inspiratie' || pageParam === 'b2b' ? pageParam : null
-
-  const [view, setView] = useState<View>(
-    initProduct ? 'pdp' : initGroup ? 'list' : initPage || 'root',
-  )
-  const [groupId, setGroupId] = useState<GroupId>(
-    initProduct ? PRODUCTS.find((p) => p.id === initProduct)!.group : initGroup || 'planten',
-  )
-  const [productId, setProductId] = useState<string>(initProduct || PRODUCTS[0].id)
-  const [items, setItems] = useState<CartItem[]>([])
+  const [nav, setNav] = useState<NavState>(stateFromLocation)
+  const [items, setItems] = useState<CartItem[]>(readCart)
   const [cartOpen, setCartOpen] = useState(false)
-  const [toast, setToast] = useState(false)
+
+  // Navigatie schrijft naar de history-stack zodat de terugknop en deelbare
+  // URL's werken; popstate leest dezelfde parameters weer terug.
+  const go = useCallback((next: NavState) => {
+    setNav(next)
+    history.pushState(null, '', urlFor(next))
+  }, [])
+
+  useEffect(() => {
+    const onPop = () => setNav(stateFromLocation())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   useEffect(() => {
     window.scrollTo(0, 0)
-  }, [view, groupId, productId])
+  }, [nav.view, nav.groupId, nav.productId])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CART_KEY, JSON.stringify(items))
+    } catch {
+      /* storage may be unavailable */
+    }
+  }, [items])
 
   const addItem = (item: Omit<CartItem, 'qty'>) => {
     setItems((prev) => {
@@ -89,8 +151,7 @@ export function App() {
         ? prev.map((i) => (i.key === item.key ? { ...i, qty: i.qty + 1 } : i))
         : [...prev, { ...item, qty: 1 }]
     })
-    setToast(true)
-    setTimeout(() => setToast(false), 2200)
+    setCartOpen(true)
   }
 
   const setQty = (key: string, qty: number) => {
@@ -101,13 +162,19 @@ export function App() {
     )
   }
 
-  const openList = (id: GroupId) => {
-    setGroupId(id)
-    setView('list')
-  }
+  const openList = (id: GroupId, sub?: string) =>
+    go({ ...nav, view: 'list', groupId: id, sub: sub ?? null })
+  const openProduct = (id: string) => go({ ...nav, view: 'pdp', productId: id })
+  const openPage = (page: Page | 'root') => go({ ...nav, view: page, sub: null })
 
   const active =
-    view === 'inspiratie' ? 'Inspiratie' : view === 'b2b' ? 'B2B portal' : 'Assortiment'
+    nav.view === 'inspiratie'
+      ? 'Inspiratie'
+      : nav.view === 'b2b'
+        ? 'Zakelijk'
+        : nav.view === 'maatwerk'
+          ? 'Configurator'
+          : 'Assortiment'
 
   return (
     <div className="min-h-screen bg-white p-3 sm:p-4 md:p-6">
@@ -117,30 +184,36 @@ export function App() {
           active={active}
           theme={theme}
           onToggleTheme={toggleTheme}
-          onHome={() => setView('root')}
-          onInspiration={() => setView('inspiratie')}
+          onHome={() => openPage('root')}
+          onInspiration={() => openPage('inspiratie')}
+          onB2B={() => openPage('b2b')}
+          onConfigurator={() => openPage('maatwerk')}
           onOpenCart={() => setCartOpen(true)}
         />
-        {view === 'root' && <GroupGrid onPick={openList} />}
-        {view === 'list' && (
+        {nav.view === 'root' && <GroupGrid onPick={openList} />}
+        {nav.view === 'list' && (
           <ProductList
-            groupId={groupId}
-            onBack={() => setView('root')}
-            onPick={(id) => {
-              setProductId(id)
-              setView('pdp')
-            }}
+            groupId={nav.groupId}
+            initialSub={nav.sub ?? undefined}
+            onBack={() => openPage('root')}
+            onPick={openProduct}
           />
         )}
-        {view === 'pdp' && (
-          <ProductDetail productId={productId} onBack={() => setView('list')} onAdd={addItem} />
+        {nav.view === 'pdp' && (
+          <ProductDetail
+            productId={nav.productId}
+            onBack={() => openList(nav.groupId)}
+            onAdd={addItem}
+            onConfigurator={() => openPage('maatwerk')}
+          />
         )}
-        {view === 'inspiratie' && <Inspiration onShop={openList} />}
-        {view === 'b2b' && <B2BDashboard onShop={() => setView('root')} />}
-        {toast && (
-          <div className="toast fixed bottom-6 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full bg-ink px-5 py-2.5 text-[13px] font-semibold text-white shadow-lg">
-            Toegevoegd aan winkelwagen
-          </div>
+        {nav.view === 'inspiratie' && <Inspiration onShop={openList} />}
+        {nav.view === 'b2b' && (
+          <B2BDashboard onShop={() => openPage('root')} onConfigure={() => openPage('maatwerk')} />
+        )}
+        {nav.view === 'maatwerk' && <Configurator onShop={() => openPage('root')} />}
+        {nav.view === 'checkout' && (
+          <Checkout items={items} onClear={() => setItems([])} onShop={() => openPage('root')} />
         )}
         <CartDrawer
           open={cartOpen}
@@ -149,9 +222,13 @@ export function App() {
           onSetQty={setQty}
           onRemove={(key) => setQty(key, 0)}
           onAddAccelerator={() => addItem(ACCELERATOR)}
+          onCheckout={() => {
+            setCartOpen(false)
+            openPage('checkout')
+          }}
           onBrowse={() => {
             setCartOpen(false)
-            setView('root')
+            openPage('root')
           }}
         />
       </div>
