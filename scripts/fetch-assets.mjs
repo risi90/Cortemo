@@ -42,11 +42,16 @@ const FILES = [
   'textures/corten-color.jpg',
   'textures/corten-normal.jpg',
   'textures/corten-roughness.jpg',
+  // homepage-herovideo (origineel: cortemo.mp4) + poster
+  'hero-poster.jpg',
+  '../video/hero.mp4',
+  '../video/hero.webm',
 ]
 const DIR = new URL('../public/img/', import.meta.url)
 
 await mkdir(DIR, { recursive: true })
 await mkdir(new URL('textures/', DIR), { recursive: true })
+await mkdir(new URL('../video/', DIR), { recursive: true })
 
 for (const file of FILES) {
   const target = new URL(file, DIR)

@@ -106,7 +106,7 @@ export function GroupGrid({
         />
         <video
           className="absolute inset-0 h-full w-full object-cover"
-          poster="/img/plantenbak.webp"
+          poster="/img/hero-poster.jpg"
           autoPlay
           muted
           loop
