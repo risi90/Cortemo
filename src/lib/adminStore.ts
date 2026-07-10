@@ -78,10 +78,11 @@ export async function updateProduct(
 /** Upload een productfoto naar Supabase Storage en geef de publieke URL terug. */
 export async function uploadProductImage(
   file: File,
+  folder = 'products',
 ): Promise<{ url?: string; error?: string }> {
   if (!supabase) return { error: 'Geen backend gekoppeld.' }
   const safe = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, '-')
-  const path = 'products/' + Date.now() + '-' + safe
+  const path = folder + '/' + Date.now() + '-' + safe
   const { error } = await supabase.storage.from('cortemo-media').upload(path, file, {
     cacheControl: '31536000',
     contentType: file.type || 'image/jpeg',
@@ -89,6 +90,50 @@ export async function uploadProductImage(
   if (error) return { error: error.message }
   const { data } = supabase.storage.from('cortemo-media').getPublicUrl(path)
   return { url: data.publicUrl }
+}
+
+/* ---------- collecties ---------- */
+
+export type Collection = { id: string; label: string; sub: string; img: string }
+
+const COLLECTIONS_KEY = 'cortemo-collections'
+
+export const getCollections = (): Collection[] => read<Collection[]>(COLLECTIONS_KEY, [])
+
+/** Collectiepresentatie uit de database; valt terug op de lokale cache. */
+export async function fetchCollections(): Promise<Collection[]> {
+  try {
+    if (supabase) {
+      const { data, error } = await supabase.from('cortemo_collections').select('*').order('id')
+      if (!error && data) {
+        const rows = data.map((r) => ({
+          id: r.id,
+          label: r.label,
+          sub: r.sub ?? '',
+          img: r.img ?? '',
+        }))
+        write(COLLECTIONS_KEY, rows)
+        return rows
+      }
+    }
+  } catch {
+    /* netwerkfout: val terug op de lokale cache */
+  }
+  return getCollections()
+}
+
+export function saveCollection(collection: Collection): Collection[] {
+  const next = [collection, ...getCollections().filter((c) => c.id !== collection.id)]
+  write(COLLECTIONS_KEY, next)
+  fire(
+    supabase?.from('cortemo_collections').upsert({
+      id: collection.id,
+      label: collection.label,
+      sub: collection.sub,
+      img: collection.img,
+    }),
+  )
+  return next
 }
 
 /* ---------- orders ---------- */

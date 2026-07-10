@@ -66,6 +66,23 @@ export function hydrateCatalog(
   if (next.length) PRODUCTS.splice(0, PRODUCTS.length, ...next)
 }
 
+/**
+ * Collectienamen/-ondertitels/-beelden uit de database over de defaults
+ * leggen. De vier collectie-id's liggen vast (homepage-vierluik en
+ * productkoppeling); alleen de presentatie is beheerbaar.
+ */
+export function hydrateCollections(
+  rows: { id: string; label: string; sub: string; img?: string }[],
+): void {
+  for (const row of rows) {
+    const group = GROUPS.find((g) => g.id === row.id)
+    if (!group) continue
+    if (row.label) group.label = row.label
+    if (row.sub) group.sub = row.sub
+    if (row.img) GROUP_IMG[group.id] = row.img
+  }
+}
+
 export const euro = (v: number): string =>
   '€ ' +
   v.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })

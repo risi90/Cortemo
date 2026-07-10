@@ -13,9 +13,9 @@ import { Checkout } from './views/Checkout'
 import { Story } from './views/Story'
 import { Service } from './views/Service'
 import { Admin } from './views/Admin'
-import { GROUPS, hydrateCatalog, PRODUCTS, type GroupId } from './data/catalog'
+import { GROUPS, hydrateCatalog, hydrateCollections, PRODUCTS, type GroupId } from './data/catalog'
 import { ACCELERATOR, cartCount, type CartItem } from './lib/cart'
-import { fetchDbProducts, fetchPricing } from './lib/adminStore'
+import { fetchCollections, fetchDbProducts, fetchPricing, getCollections } from './lib/adminStore'
 import { useTheme } from './lib/useTheme'
 
 type Page = 'inspiratie' | 'b2b' | 'maatwerk' | 'checkout' | 'verhaal' | 'service' | 'admin'
@@ -127,6 +127,10 @@ function applySeo(s: NavState) {
   setMeta('robots', s.view === 'admin' || s.view === 'checkout' ? 'noindex, nofollow' : null)
 }
 
+// Collectiepresentatie uit de lokale cache vóór de eerste render, zodat
+// beheerde namen/beelden zonder flits (en zonder netwerk) zichtbaar zijn.
+hydrateCollections(getCollections())
+
 const CART_KEY = 'cortemo-cart'
 
 function readCart(): CartItem[] {
@@ -231,7 +235,8 @@ export function App() {
     applySeo(nav)
   }, [nav])
 
-  // Catalogus en tarieven uit de backend laden (no-op zonder configuratie).
+  // Catalogus, collecties en tarieven uit de backend laden (no-op zonder
+  // configuratie); de lokale collectiecache is bij module-init al toegepast.
   const [, setCatalogVersion] = useState(0)
   useEffect(() => {
     void fetchDbProducts().then((rows) => {
@@ -239,6 +244,10 @@ export function App() {
         hydrateCatalog(rows)
         setCatalogVersion((v) => v + 1)
       }
+    })
+    void fetchCollections().then((rows) => {
+      hydrateCollections(rows)
+      setCatalogVersion((v) => v + 1)
     })
     void fetchPricing()
   }, [])

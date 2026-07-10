@@ -1,13 +1,13 @@
+import { GROUPS } from '../data/catalog'
+
 type FooterCol = { title: string; links: [string, string][] }
 
-const FOOTER_COLS: FooterCol[] = [
+// bij render opgebouwd zodat beheerde collectienamen meebewegen
+const footerCols = (): FooterCol[] => [
   {
     title: 'Assortiment',
     links: [
-      ['Planten & bomen', '/collectie/planten'],
-      ['Maatwerk componenten', '/collectie/hoogte'],
-      ['Vuur & water', '/collectie/vuurwater'],
-      ['Decoratie & praktisch', '/collectie/deco'],
+      ...GROUPS.map((g): [string, string] => [g.label, '/collectie/' + g.id]),
       ['Configurator', '/maatwerk'],
     ],
   },
@@ -57,7 +57,7 @@ export function CortemoFooter() {
             <div>KvK 87654321 &middot; BTW NL003456789B01</div>
           </div>
         </div>
-        {FOOTER_COLS.map((col) => (
+        {footerCols().map((col) => (
           <div key={col.title}>
             <div className="text-[11px] font-semibold uppercase tracking-[.16em] text-white/40">
               {col.title}

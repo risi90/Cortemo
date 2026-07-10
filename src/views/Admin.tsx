@@ -17,7 +17,7 @@ import {
   Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { euro, GROUPS, PRODUCTS } from '../data/catalog'
+import { euro, GROUP_IMG, GROUPS, hydrateCollections, PRODUCTS } from '../data/catalog'
 import {
   addPartner,
   deleteDiscount,
@@ -27,11 +27,14 @@ import {
   getDiscounts,
   saveDiscount,
   createInvoice,
+  fetchCollections,
   fetchInvoices,
   fetchOrders,
   fetchPartners,
   fetchProjects,
   getInvoices,
+  saveCollection,
+  uploadProductImage,
   getMailings,
   getOrders,
   getProjects,
@@ -47,6 +50,7 @@ import {
   setPartnerTerms,
   signInAdmin,
   signOutAdmin,
+  type Collection,
   type Invoice,
   type Order,
   type OrderStatus,
@@ -385,18 +389,116 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
 }
 
 function Collections() {
+  // start vanaf de actuele (gehydrateerde) shopwaarden
+  const [drafts, setDrafts] = useState<Collection[]>(() =>
+    GROUPS.map((g) => ({ id: g.id, label: g.label, sub: g.sub, img: GROUP_IMG[g.id] ?? '' })),
+  )
+  const [saved, setSaved] = useState<string | null>(null)
+  const [uploading, setUploading] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    void fetchCollections().then((rows) => {
+      if (rows.length) {
+        hydrateCollections(rows)
+        setDrafts(GROUPS.map((g) => ({ id: g.id, label: g.label, sub: g.sub, img: GROUP_IMG[g.id] ?? '' })))
+      }
+    })
+  }, [])
+
+  const update = (id: string, patch: Partial<Collection>) =>
+    setDrafts((ds) => ds.map((d) => (d.id === id ? { ...d, ...patch } : d)))
+
+  const save = (draft: Collection) => {
+    if (draft.label.trim().length < 2) {
+      setError('Een collectienaam heeft minimaal 2 tekens.')
+      return
+    }
+    setError('')
+    saveCollection({ ...draft, label: draft.label.trim(), sub: draft.sub.trim() })
+    hydrateCollections([draft])
+    setSaved(draft.id)
+    setTimeout(() => setSaved(null), 1800)
+  }
+
+  const upload = async (id: string, file: File) => {
+    setUploading(id)
+    setError('')
+    const result = await uploadProductImage(file, 'collections')
+    setUploading(null)
+    if (result.error) {
+      setError('Upload mislukt: ' + result.error)
+      return
+    }
+    update(id, { img: result.url! })
+  }
+
   return (
     <Card title="Collecties">
+      <p className="mb-4 text-[12px] leading-relaxed text-white/45">
+        Naam, ondertitel en sfeerbeeld per collectie zijn hier direct aan te passen; ze werken
+        door in het homepage-vierluik, de productlijsten en de footer. De vier collecties zelf
+        liggen vast — producten zijn eraan gekoppeld en het vierluik is erop ontworpen.
+      </p>
+      {error && <p className="mb-3 text-[13px] font-medium text-rust">{error}</p>}
       <ul className="divide-y divide-white/5">
-        {GROUPS.map((g) => (
-          <li key={g.id} className="flex items-baseline gap-3 py-3 text-[13px]">
-            <span className="min-w-0 flex-1">
-              <span className="block font-semibold">{g.label}</span>
-              <span className="block text-[11px] text-white/45">{g.sub}</span>
-            </span>
-            <span className="tabular-nums text-white/50">
-              {PRODUCTS.filter((p) => p.group === g.id).length} producten
-            </span>
+        {drafts.map((draft) => (
+          <li key={draft.id} className="flex flex-wrap items-start gap-4 py-4">
+            <label
+              className="group relative block h-20 w-28 shrink-0 cursor-pointer overflow-hidden rounded-lg bg-white/5"
+              title="Klik om een nieuw sfeerbeeld te uploaden"
+            >
+              {draft.img ? (
+                <img src={draft.img} alt={'Sfeerbeeld ' + draft.label} className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full items-center justify-center text-[11px] text-white/35">
+                  geen beeld
+                </span>
+              )}
+              <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+                {uploading === draft.id ? 'Bezig…' : 'Wijzig foto'}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                aria-label={'Sfeerbeeld van ' + draft.label}
+                onChange={(e) => e.target.files?.[0] && void upload(draft.id, e.target.files[0])}
+              />
+            </label>
+            <div className="min-w-0 flex-1 space-y-2">
+              <input
+                type="text"
+                value={draft.label}
+                maxLength={40}
+                onChange={(e) => update(draft.id, { label: e.target.value })}
+                aria-label={'Naam van collectie ' + draft.id}
+                className={fieldSm + ' w-full font-semibold'}
+              />
+              <input
+                type="text"
+                value={draft.sub}
+                maxLength={80}
+                onChange={(e) => update(draft.id, { sub: e.target.value })}
+                placeholder="Ondertitel"
+                aria-label={'Ondertitel van collectie ' + draft.id}
+                className={fieldSm + ' w-full'}
+              />
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => save(draft)}
+                  className={
+                    'rounded-lg px-4 py-2 text-[12px] font-semibold text-white transition-all ' +
+                    (saved === draft.id ? 'bg-ok' : 'bg-rust hover:bg-rust-deep')
+                  }
+                >
+                  {saved === draft.id ? 'Opgeslagen' : 'Opslaan'}
+                </button>
+                <span className="text-[11px] tabular-nums text-white/40">
+                  {PRODUCTS.filter((p) => p.group === draft.id).length} producten
+                </span>
+              </div>
+            </div>
           </li>
         ))}
       </ul>
