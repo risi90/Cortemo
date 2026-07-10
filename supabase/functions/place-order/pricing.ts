@@ -31,6 +31,8 @@ export type DecoState = {
   nx: number
   ny: number
   ns: number
+  mode?: 'uitsnede' | 'graveren'
+  logo?: boolean
   custom?: [number, number][][]
 }
 
@@ -121,6 +123,7 @@ export const PRICING = {
     maxStukBorder: 2300,
     overlapBorder: 60,
     letterFactor: 3.2,
+    graveerFactor: 0.4,
   },
   order: { startkosten: 15, programmeren: 12.5, dxfToeslag: 7.5, nestingfactorDxf: 1.15 },
   logistiek: {
@@ -196,7 +199,7 @@ function decodeDeco(raw: string): DecoState {
       case 'x': deco.x = num(value); break
       case 'y': deco.y = num(value); break
       case 's': deco.s = num(value); break
-      case 't': deco.text = decodeURIComponent(value).slice(0, 24); break
+      case 't': deco.text = decodeURIComponent(value).slice(0, 60); break
       case 'a': deco.tx = num(value); break
       case 'b': deco.ty = num(value); break
       case 'c': deco.ts = num(value); break
@@ -204,6 +207,8 @@ function decodeDeco(raw: string): DecoState {
       case 'd': deco.nx = num(value); break
       case 'e': deco.ny = num(value); break
       case 'g': deco.ns = num(value); break
+      case 'm': deco.mode = value === 'g' ? 'graveren' : 'uitsnede'; break
+      case 'l': deco.logo = value !== '0'; break
       case 'p':
         deco.custom = value
           .split('!')
@@ -232,7 +237,12 @@ export function parseCfg(raw: string): ConfigState | null {
     thickness: parseInt(thickness, 10) || 3,
     options,
   }
-  const hasDeco = typeId === 'staptegel' || typeId === 'naambord' || typeId === 'figuur'
+  // ook de plaatproducten dragen een deco-blok (accent-ontwerp)
+  const hasDeco =
+    typeId === 'staptegel' ||
+    typeId === 'naambord' ||
+    typeId === 'figuur' ||
+    ACCENT_TYPES.has(typeId as ConfigTypeId)
   if (hasDeco) {
     state.deco = decoRest.length > 0 ? decodeDeco(decoRest.join('.')) : decodeDeco('')
     if (typeId === 'naambord' && decoRest.length === 0) {
@@ -279,9 +289,35 @@ type Geometry = {
   weldM: number
   couplers: number
   segments: number
+  graveerM?: number
+}
+
+const ACCENT_TYPES = new Set<ConfigTypeId>(['plantenbak', 'keerwand', 'borderrand', 'schutting'])
+
+function applyAccentDeco(g: Geometry, state: ConfigState, P: PricingSettings): Geometry {
+  const d = state.deco
+  if (!d || !ACCENT_TYPES.has(state.typeId)) return g
+  const H = (state.dims.h || 0) * M
+  const fig = decoStats(d)
+  const chars = (d.text ?? '').replace(/\s+/g, '').length
+  const figLen = fig.per * d.s * H
+  const textLen = chars * P.optieTarieven.letterFactor * d.ts * H
+  const len = figLen + textLen
+  if (len === 0) return g
+  if (d.mode !== 'graveren') {
+    g.cutM += len
+    g.piercings += (d.fig ? fig.paths : 0) + 2 * chars
+  } else {
+    g.graveerM = (g.graveerM ?? 0) + len
+  }
+  return g
 }
 
 function geometryFor(state: ConfigState, P: PricingSettings): Geometry {
+  return applyAccentDeco(baseGeometry(state, P), state, P)
+}
+
+function baseGeometry(state: ConfigState, P: PricingSettings): Geometry {
   const { l = 0, b = 0, h = 0 } = state.dims
   const [L, B, H] = [l * M, b * M, h * M]
   const flens = P.zetten.flensBreedte * M
@@ -344,17 +380,20 @@ function geometryFor(state: ConfigState, P: PricingSettings): Geometry {
       }
     }
     case 'staptegel': {
-      const fig = decoStats(state.deco)
-      const figH = (state.deco?.s ?? 0.5) * L
+      const d = state.deco
+      const fig = decoStats(d)
+      const figLen = fig.per * (d?.s ?? 0.5) * L
+      const uitsnede = d?.mode !== 'graveren'
       return {
         areaM2: Math.PI * (L / 2) ** 2,
-        cutM: Math.PI * L + fig.per * figH,
-        piercings: 1 + fig.paths,
+        cutM: Math.PI * L + (uitsnede ? figLen : 0),
+        piercings: 1 + (uitsnede ? fig.paths : 0),
         bends: 0,
         longBends: 0,
         weldM: 0,
         couplers: 0,
         segments: 1,
+        graveerM: uitsnede ? 0 : figLen,
       }
     }
     case 'naambord': {
@@ -363,23 +402,24 @@ function geometryFor(state: ConfigState, P: PricingSettings): Geometry {
       // spaties en regeleinden snijden niet mee — identiek aan letterCount
       // in src/lib/pricing.ts
       const chars = (tekst: string) => tekst.replace(/\s+/g, '').length
-      const letterCut = (tekst: string, hoogteFr: number) =>
+      const letterLen = (tekst: string, hoogteFr: number) =>
         chars(tekst) * P.optieTarieven.letterFactor * hoogteFr * H
-      const cut =
-        2 * (L + H) +
+      const decoLen =
         fig.per * (d?.s ?? 0.3) * H +
-        letterCut(d?.text ?? '', d?.ts ?? 0.28) +
-        letterCut(d?.nr ?? '', d?.ns ?? 0.4)
+        letterLen(d?.text ?? '', d?.ts ?? 0.28) +
+        letterLen(d?.nr ?? '', d?.ns ?? 0.4)
       const letters = chars(d?.text ?? '') + chars(d?.nr ?? '')
+      const uitsnede = d?.mode !== 'graveren'
       return {
         areaM2: L * H,
-        cutM: cut,
-        piercings: 1 + 4 + 2 * letters + fig.paths,
+        cutM: 2 * (L + H) + (uitsnede ? decoLen : 0),
+        piercings: 1 + 4 + (uitsnede ? 2 * letters + fig.paths : 0),
         bends: 0,
         longBends: 0,
         weldM: 0,
         couplers: 0,
         segments: 1,
+        graveerM: uitsnede ? 0 : decoLen,
       }
     }
     case 'figuur': {
@@ -414,7 +454,10 @@ export function calcTotal(state: ConfigState, P: PricingSettings): number {
   const areaVerrekend = g.areaM2 * (1 + P.staal.uitvalPct)
   const weightKg = Math.round(g.areaM2 * t * P.staal.dichtheid * 10) / 10
   const material = areaVerrekend * t * P.staal.dichtheid * rateFor(P.staal.prijsPerKg, state.thickness)
-  const cutting = g.cutM * rateFor(P.snijden.tariefPerM, state.thickness) + g.piercings * P.snijden.insteek
+  const cutting =
+    g.cutM * rateFor(P.snijden.tariefPerM, state.thickness) +
+    g.piercings * P.snijden.insteek +
+    (g.graveerM ?? 0) * rateFor(P.snijden.tariefPerM, state.thickness) * P.optieTarieven.graveerFactor
   const bending = g.bends * P.zetten.perZetting + g.longBends * P.zetten.toeslagLang
 
   const bodemRand =

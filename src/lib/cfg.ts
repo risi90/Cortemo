@@ -19,7 +19,7 @@ function encodeDeco(d: DecoState): string {
     'x', pm(d.x), 'y', pm(d.y), 's', pm(d.s),
     't', encText(d.text), 'a', pm(d.tx), 'b', pm(d.ty), 'c', pm(d.ts),
     'n', encText(d.nr), 'd', pm(d.nx), 'e', pm(d.ny), 'g', pm(d.ns),
-    'q', encText(d.font),
+    'q', encText(d.font), 'm', d.mode === 'graveren' ? 'g' : 'u', 'l', d.logo ? '1' : '0',
   ]
   if (d.fig === 'custom' && d.custom?.length) {
     parts.push(
@@ -56,6 +56,8 @@ function decodeDeco(raw: string, typeId: ConfigState['typeId']): DecoState {
         if (font === 'modern' || font === 'klassiek' || font === 'mono') deco.font = font
         break
       }
+      case 'm': deco.mode = value === 'g' ? 'graveren' : 'uitsnede'; break
+      case 'l': deco.logo = value !== '0'; break
       case 'p':
         deco.custom = value
           .split('!')

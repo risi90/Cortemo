@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import type { ThreeEvent } from '@react-three/fiber'
 import { cortenLaserMaterial, cortenMaterial } from './cortenMaterial'
+import { configType } from '../../data/configuratorSchema'
 import { figure, type FigurePath } from '../../data/figures'
 import { useConfiguratorStore, type DragTarget } from '../../store/configuratorStore'
 import type { ConfigState } from '../../lib/pricing'
@@ -122,11 +123,15 @@ const LINE_PX = 128 // canvas-hoogte per tekstregel (fontgrootte 96)
 
 const textTextureCache = new Map<string, THREE.CanvasTexture>()
 
+/** Uitsnede oogt als een gat (bijna zwart), gravure als ingebrande markering. */
+const DECO_COLORS = { uitsnede: '#0c0906', graveren: '#472a15' } as const
+
 function textTexture(
   text: string,
   fontId: string,
+  color: string = DECO_COLORS.uitsnede,
 ): { tex: THREE.CanvasTexture; lines: number; ratio: number } {
-  const key = fontId + '|' + text
+  const key = fontId + '|' + color + '|' + text
   const font = FONT_FACES[fontId] ?? FONT_FACES.modern
   const lines = text.split('\n').filter((l) => l.trim() !== '')
   if (lines.length === 0) lines.push(' ')
@@ -142,7 +147,7 @@ function textTexture(
     ctx.font = font
     ctx.textBaseline = 'middle'
     ctx.textAlign = 'center'
-    ctx.fillStyle = '#0c0906'
+    ctx.fillStyle = color
     lines.forEach((line, i) => ctx.fillText(line, w / 2, LINE_PX * i + LINE_PX * 0.55))
     tex = new THREE.CanvasTexture(canvas)
     tex.anisotropy = 4
@@ -167,22 +172,111 @@ function TextDecal({
   text,
   heightM,
   fontId,
+  color,
   position,
+  rotation,
   onPointerDown,
 }: {
   text: string
   heightM: number
   fontId: string
+  color?: string
   position: [number, number, number]
+  rotation?: [number, number, number]
   onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
 }) {
-  const { tex, lines, ratio } = useMemo(() => textTexture(text, fontId), [text, fontId])
+  const { tex, lines, ratio } = useMemo(
+    () => textTexture(text, fontId, color),
+    [text, fontId, color],
+  )
   if (!text.trim()) return null
   return (
-    <mesh position={position} onPointerDown={onPointerDown}>
+    <mesh position={position} rotation={rotation} onPointerDown={onPointerDown}>
       <planeGeometry args={[heightM * ratio * 0.78, heightM * lines]} />
       <meshBasicMaterial map={tex} transparent depthWrite={false} />
     </mesh>
+  )
+}
+
+/* ---------- figuur als decal (gravure of uitsnede-look op een vlak) ---------- */
+
+const figTextureCache = new Map<string, THREE.CanvasTexture>()
+
+function figTexture(paths: FigurePath[], cacheKey: string, color: string): { tex: THREE.CanvasTexture; aspect: number } {
+  const pts = paths.flat()
+  const xs = pts.map((p) => p[0])
+  const ys = pts.map((p) => p[1])
+  const minX = Math.min(...xs)
+  const minY = Math.min(...ys)
+  const w = Math.max(...xs) - minX || 1
+  const h = Math.max(...ys) - minY || 1
+  const key = cacheKey + '|' + color
+  let tex = figTextureCache.get(key)
+  if (!tex) {
+    const SIZE = 256
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(2, Math.round((SIZE * w) / h))
+    canvas.height = SIZE
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = color
+    const s = SIZE / h
+    for (const path of paths) {
+      ctx.beginPath()
+      path.forEach(([x, y], i) => {
+        const px = (x - minX) * s
+        const py = (y - minY) * s
+        if (i === 0) ctx.moveTo(px, py)
+        else ctx.lineTo(px, py)
+      })
+      ctx.closePath()
+      ctx.fill()
+    }
+    tex = new THREE.CanvasTexture(canvas)
+    tex.anisotropy = 4
+    if (figTextureCache.size > 40) figTextureCache.clear()
+    figTextureCache.set(key, tex)
+  }
+  return { tex, aspect: w / h }
+}
+
+function FigDecal({
+  paths,
+  cacheKey,
+  heightM,
+  color,
+  position,
+  rotation,
+  onPointerDown,
+}: {
+  paths: FigurePath[]
+  cacheKey: string
+  heightM: number
+  color: string
+  position: [number, number, number]
+  rotation?: [number, number, number]
+  onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
+}) {
+  const { tex, aspect } = useMemo(() => figTexture(paths, cacheKey, color), [paths, cacheKey, color])
+  return (
+    <mesh position={position} rotation={rotation} onPointerDown={onPointerDown}>
+      <planeGeometry args={[heightM * aspect, heightM]} />
+      <meshBasicMaterial map={tex} transparent depthWrite={false} />
+    </mesh>
+  )
+}
+
+/** Subtiel Cortemo-merkje (gravure), rechtsonder op het vlak; white label = uit. */
+function LogoDecal({ W, H, z }: { W: number; H: number; z: number }) {
+  const hM = Math.min(0.018, Math.max(0.01, H * 0.035))
+  const size = textDecalSize('CORTEMO.', hM, 'modern')
+  return (
+    <TextDecal
+      text="CORTEMO."
+      heightM={hM}
+      fontId="modern"
+      color={DECO_COLORS.graveren}
+      position={[W / 2 - size.w / 2 - 0.01, -H / 2 + size.h / 2 + 0.008, z]}
+    />
   )
 }
 
@@ -230,6 +324,113 @@ function CenterGuides({
   )
 }
 
+/** Cachesleutel voor figuur-decals (eigen silhouetten variëren op inhoud). */
+function figCacheKey(d: NonNullable<ConfigState['deco']>): string {
+  if (d.fig !== 'custom') return d.fig
+  const first = d.custom?.[0]
+  return 'custom:' + (first?.length ?? 0) + ':' + (first?.[0]?.join(',') ?? '')
+}
+
+/**
+ * Ontwerp-laag op het voorvlak van een plaatproduct (accent-deco):
+ * versleepbaar figuur + tekst (doorgelaserd of gegraveerd) en het
+ * Cortemo-merkje (tenzij white label).
+ */
+function DecoOverlay({
+  state,
+  W,
+  H,
+  position,
+}: {
+  state: ConfigState
+  W: number
+  H: number
+  position: [number, number, number]
+}) {
+  const d = state.deco
+  const paths = decoPaths(state)
+  const setDeco = useConfiguratorStore((s) => s.setDeco)
+  const setDragging = useConfiguratorStore((s) => s.setDragging)
+  const dragging = useConfiguratorStore((s) => s.dragging)
+  const drag = useRef<DragInfo | null>(null)
+  if (!d) return null
+  const color = DECO_COLORS[d.mode]
+  const figH = d.s * H
+
+  const bounds = (w: number, h: number) => ({
+    minX: Math.min(0.5, w / 2 / W),
+    maxX: Math.max(0.5, 1 - w / 2 / W),
+    minY: Math.min(0.5, h / 2 / H),
+    maxY: Math.max(0.5, 1 - h / 2 / H),
+  })
+
+  const start = (target: Exclude<DragTarget, null>) => (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation()
+    setDragging(target)
+    const [x0, y0] = target === 'fig' ? [d.x, d.y] : [d.tx, d.ty]
+    drag.current = { target, px: e.point.x, py: e.point.y, x0, y0 }
+  }
+
+  const move = (e: ThreeEvent<PointerEvent>) => {
+    const info = drag.current
+    if (!dragging || !info || info.target !== dragging) return
+    const dx = e.point.x - info.px
+    const dy = e.point.y - info.py
+    if (dragging === 'fig') {
+      const span = { x: W - figH || 1, y: H - figH || 1 }
+      setDeco({ x: snapCenter(info.x0 + dx / span.x), y: snapCenter(info.y0 - dy / span.y) })
+    } else if (dragging === 'text') {
+      const size = textDecalSize(d.text, d.ts * H, d.font)
+      const b = bounds(size.w, size.h)
+      setDeco({
+        tx: clamp01(snapCenter(info.x0 + dx / W), b.minX, b.maxX),
+        ty: clamp01(snapCenter(info.y0 - dy / H), b.minY, b.maxY),
+      })
+    }
+  }
+
+  const tSize = textDecalSize(d.text, d.ts * H, d.font)
+  const tb = bounds(tSize.w, tSize.h)
+  const tx = clamp01(d.tx, tb.minX, tb.maxX)
+  const ty = clamp01(d.ty, tb.minY, tb.maxY)
+  const snap =
+    dragging === 'fig' ? { x: d.x === 0.5, y: d.y === 0.5 }
+    : dragging === 'text' ? { x: tx === 0.5, y: ty === 0.5 }
+    : { x: false, y: false }
+
+  return (
+    <group position={position}>
+      {/* onzichtbaar sleepvlak over het hele voorvlak */}
+      <mesh onPointerMove={move}>
+        <planeGeometry args={[W, H]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+      {paths.length > 0 && (
+        <FigDecal
+          paths={paths}
+          cacheKey={figCacheKey(d)}
+          heightM={figH}
+          color={color}
+          position={[(d.x - 0.5) * (W - figH), (0.5 - d.y) * (H - figH), 0.0006]}
+          onPointerDown={start('fig')}
+        />
+      )}
+      <TextDecal
+        text={d.text}
+        heightM={d.ts * H}
+        fontId={d.font}
+        color={color}
+        position={[(tx - 0.5) * W, (0.5 - ty) * H, 0.0006]}
+        onPointerDown={start('text')}
+      />
+      {d.logo && <LogoDecal W={W} H={H} z={0.0005} />}
+      {dragging && drag.current && (
+        <CenterGuides snapX={snap.x} snapY={snap.y} w={W} h={H} position={[0, 0, 0.001]} />
+      )}
+    </group>
+  )
+}
+
 /** Ronde staptegel met optioneel uitgesneden motief (echt gat). */
 function Staptegel({ state, rust }: { state: ConfigState; rust: number }) {
   const D = (state.dims.l || 450) * MM
@@ -244,7 +445,7 @@ function Staptegel({ state, rust }: { state: ConfigState; rust: number }) {
   const geometry = useMemo(() => {
     const shape = new THREE.Shape()
     shape.absarc(0, 0, D / 2, 0, Math.PI * 2, false)
-    if (paths.length && d) {
+    if (paths.length && d && d.mode !== 'graveren') {
       const figH = d.s * D
       const offX = (d.x - 0.5) * (D - figH)
       const offY = (0.5 - d.y) * (D - figH)
@@ -253,7 +454,7 @@ function Staptegel({ state, rust }: { state: ConfigState; rust: number }) {
     const geo = new THREE.ExtrudeGeometry(shape, { depth: t, bevelEnabled: false })
     geo.rotateX(-Math.PI / 2)
     return geo
-  }, [D, t, d?.s, d?.x, d?.y, d?.fig, paths, d])
+  }, [D, t, d?.s, d?.x, d?.y, d?.fig, d?.mode, paths, d])
 
   const down = (e: ThreeEvent<PointerEvent>) => {
     if (!paths.length || !d) return
@@ -284,6 +485,27 @@ function Staptegel({ state, rust }: { state: ConfigState; rust: number }) {
         onPointerDown={down}
         onPointerMove={move}
       />
+      {paths.length > 0 && d && d.mode === 'graveren' && (
+        <FigDecal
+          paths={paths}
+          cacheKey={figCacheKey(d)}
+          heightM={d.s * D}
+          color={DECO_COLORS.graveren}
+          position={[(d.x - 0.5) * (D - d.s * D), t + 0.0006, -(0.5 - d.y) * (D - d.s * D)]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          onPointerDown={down}
+        />
+      )}
+      {d?.logo && (
+        <TextDecal
+          text="CORTEMO."
+          heightM={Math.min(0.014, D * 0.045)}
+          fontId="modern"
+          color={DECO_COLORS.graveren}
+          position={[0, t + 0.0005, D * 0.4]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        />
+      )}
       {dragging === 'fig' && d && (
         <CenterGuides
           snapX={d.x === 0.5}
@@ -330,7 +552,7 @@ function Naambord({ state, rust }: { state: ConfigState; rust: number }) {
       hole.absarc(sx * (L / 2 - inset), sy * (H / 2 - inset), 0.003, 0, Math.PI * 2, true)
       shape.holes.push(hole)
     }
-    if (paths.length && d) {
+    if (paths.length && d && d.mode !== 'graveren') {
       const figH = d.s * H
       shape.holes.push(
         ...figureHoles(paths, figH, (d.x - 0.5) * (L - figH), (0.5 - d.y) * (H - figH)),
@@ -339,7 +561,7 @@ function Naambord({ state, rust }: { state: ConfigState; rust: number }) {
     const geo = new THREE.ExtrudeGeometry(shape, { depth: t, bevelEnabled: false })
     geo.translate(0, 0, -t / 2)
     return geo
-  }, [L, H, t, d?.s, d?.x, d?.y, d?.fig, paths, d])
+  }, [L, H, t, d?.s, d?.x, d?.y, d?.fig, d?.mode, paths, d])
 
   const yc = H / 2 + 0.02 // bord hangt net boven de grond
 
@@ -415,10 +637,21 @@ function Naambord({ state, rust }: { state: ConfigState; rust: number }) {
       />
       {d && (
         <>
+          {paths.length > 0 && d.mode === 'graveren' && (
+            <FigDecal
+              paths={paths}
+              cacheKey={figCacheKey(d)}
+              heightM={d.s * H}
+              color={DECO_COLORS.graveren}
+              position={[(d.x - 0.5) * (L - d.s * H), (0.5 - d.y) * (H - d.s * H), t / 2 + 0.0006]}
+              onPointerDown={startDrag('fig')}
+            />
+          )}
           <TextDecal
             text={d.text}
             heightM={d.ts * H}
             fontId={d.font}
+            color={DECO_COLORS[d.mode]}
             position={[(tx - 0.5) * L, (0.5 - ty) * H, t / 2 + 0.0004]}
             onPointerDown={startDrag('text')}
           />
@@ -426,9 +659,11 @@ function Naambord({ state, rust }: { state: ConfigState; rust: number }) {
             text={d.nr}
             heightM={d.ns * H}
             fontId={d.font}
+            color={DECO_COLORS[d.mode]}
             position={[(nx - 0.5) * L, (0.5 - ny) * H, t / 2 + 0.0004]}
             onPointerDown={startDrag('nr')}
           />
+          {d.logo && <LogoDecal W={L} H={H} z={t / 2 + 0.0005} />}
           {dragging && (
             <CenterGuides
               snapX={activeSnap.x ?? false}
@@ -551,6 +786,19 @@ function PlateModel({
           h={state.dims.h * MM}
           t={state.thickness * MM}
           rust={rust}
+        />
+      )}
+      {configType(state.typeId).deco === 'accent' && state.deco && (
+        <DecoOverlay
+          state={state}
+          W={state.dims.l * MM}
+          H={state.dims.h * MM}
+          position={[
+            0,
+            (state.dims.h * MM) / 2,
+            (state.typeId === 'plantenbak' ? (state.dims.b * MM) / 2 : (state.thickness * MM) / 2) +
+              0.0004,
+          ]}
         />
       )}
     </group>

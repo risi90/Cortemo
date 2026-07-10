@@ -28,6 +28,14 @@ export type DecoState = {
   ns: number
   /** Lettertype voor tekst en nummer. */
   font: 'modern' | 'klassiek' | 'mono'
+  /**
+   * Doorlaseren (uitsnede, écht gat) of lasergraveren (donkere markering
+   * in het oppervlak). Printen bieden we bewust niet: dat hecht niet
+   * duurzaam op een roestlaag — gravure veroudert mee met het staal.
+   */
+  mode: 'uitsnede' | 'graveren'
+  /** Subtiel Cortemo-merkje op het product; uit = white label (gratis). */
+  logo: boolean
   /** Eigen silhouet: genormaliseerde punten 0–100 (y omlaag). */
   custom?: FigurePath[]
 }
@@ -50,9 +58,15 @@ export function defaultDeco(typeId: ConfigTypeId): DecoState {
     ny: 0.66,
     ns: 0.4,
     font: 'modern',
+    mode: 'uitsnede',
+    logo: true,
   }
   if (typeId === 'naambord') return { ...base, text: 'Cortemo', nr: '12', fig: '', x: 0.16, y: 0.6, s: 0.34 }
   if (typeId === 'figuur') return { ...base, fig: 'hert', s: 1 }
+  if (configType(typeId).deco === 'accent') {
+    // subtiel accent: standaard gegraveerd, klein, gecentreerd
+    return { ...base, mode: 'graveren', s: 0.3, ts: 0.16, tx: 0.5, ty: 0.5 }
+  }
   return base
 }
 
@@ -125,6 +139,8 @@ type Geometry = {
   /** Koppelsets tussen segmenten. */
   couplers: number
   segments: number
+  /** Lasergraveerlengte in m (tarief = snijtarief × graveerFactor). */
+  graveerM?: number
 }
 
 /**
@@ -132,7 +148,33 @@ type Geometry = {
  * Bewust eenvoudige, uitlegbare benaderingen van de werkelijke uitslagen;
  * de tarieven komen 1-op-1 uit het parametersblad.
  */
+/**
+ * Accent-ontwerp (figuur + tekst op het vlak) bijtellen: doorgelaserd
+ * telt als snijlengte met insteekjes, gegraveerd als graveerlengte.
+ */
+function applyAccentDeco(g: Geometry, state: ConfigState, P: ReturnType<typeof getPricing>): Geometry {
+  const d = state.deco
+  if (!d || configType(state.typeId).deco !== 'accent') return g
+  const H = (state.dims.h || 0) * M
+  const fig = decoStats(d)
+  const figLen = fig.per * d.s * H
+  const textLen = letterCount(d.text) * P.optieTarieven.letterFactor * d.ts * H
+  const len = figLen + textLen
+  if (len === 0) return g
+  if (d.mode === 'uitsnede') {
+    g.cutM += len
+    g.piercings += (d.fig ? fig.paths : 0) + 2 * letterCount(d.text)
+  } else {
+    g.graveerM = (g.graveerM ?? 0) + len
+  }
+  return g
+}
+
 function geometryFor(state: ConfigState, P: ReturnType<typeof getPricing>): Geometry {
+  return applyAccentDeco(baseGeometry(state, P), state, P)
+}
+
+function baseGeometry(state: ConfigState, P: ReturnType<typeof getPricing>): Geometry {
   const { l = 0, b = 0, h = 0 } = state.dims
   const [L, B, H] = [l * M, b * M, h * M]
   const flens = P.zetten.flensBreedte * M
@@ -224,41 +266,45 @@ function geometryFor(state: ConfigState, P: ReturnType<typeof getPricing>): Geom
       }
     }
     case 'staptegel': {
-      // ronde schijf (l = diameter), optioneel een uitgesneden motief
-      const fig = decoStats(state.deco)
-      const figH = (state.deco?.s ?? 0.5) * L
+      // ronde schijf (l = diameter); motief doorgelaserd of gegraveerd
+      const d = state.deco
+      const fig = decoStats(d)
+      const figLen = fig.per * (d?.s ?? 0.5) * L
+      const uitsnede = d?.mode !== 'graveren'
       return {
         areaM2: Math.PI * (L / 2) ** 2,
-        cutM: Math.PI * L + fig.per * figH,
-        piercings: 1 + fig.paths,
+        cutM: Math.PI * L + (uitsnede ? figLen : 0),
+        piercings: 1 + (uitsnede ? fig.paths : 0),
         bends: 0,
         longBends: 0,
         weldM: 0,
         couplers: 0,
         segments: 1,
+        graveerM: uitsnede ? 0 : figLen,
       }
     }
     case 'naambord': {
-      // plaat met uitgesneden tekst/nummer/figuur + 4 montagegaten
+      // plaat met tekst/nummer/figuur (doorgelaserd of gegraveerd) + 4 gaten
       const d = state.deco
       const fig = decoStats(d)
-      const letterCut = (tekst: string, hoogteFr: number) =>
+      const letterLen = (tekst: string, hoogteFr: number) =>
         letterCount(tekst) * P.optieTarieven.letterFactor * hoogteFr * H
-      const cut =
-        2 * (L + H) +
+      const decoLen =
         fig.per * (d?.s ?? 0.3) * H +
-        letterCut(d?.text ?? '', d?.ts ?? 0.28) +
-        letterCut(d?.nr ?? '', d?.ns ?? 0.4)
+        letterLen(d?.text ?? '', d?.ts ?? 0.28) +
+        letterLen(d?.nr ?? '', d?.ns ?? 0.4)
       const letters = letterCount(d?.text ?? '') + letterCount(d?.nr ?? '')
+      const uitsnede = d?.mode !== 'graveren'
       return {
         areaM2: L * H,
-        cutM: cut,
-        piercings: 1 + 4 + 2 * letters + fig.paths,
+        cutM: 2 * (L + H) + (uitsnede ? decoLen : 0),
+        piercings: 1 + 4 + (uitsnede ? 2 * letters + fig.paths : 0),
         bends: 0,
         longBends: 0,
         weldM: 0,
         couplers: 0,
         segments: 1,
+        graveerM: uitsnede ? 0 : decoLen,
       }
     }
     case 'figuur': {
@@ -296,8 +342,11 @@ export function calcPrice(state: ConfigState): PriceBreakdown {
   const weightKg = Math.round(g.areaM2 * t * P.staal.dichtheid * 10) / 10
   const material = areaVerrekend * t * P.staal.dichtheid * rateFor(P.staal.prijsPerKg, state.thickness)
 
-  /* B. lasersnijden */
-  const cutting = g.cutM * rateFor(P.snijden.tariefPerM, state.thickness) + g.piercings * P.snijden.insteek
+  /* B. lasersnijden + lasergraveren */
+  const cutting =
+    g.cutM * rateFor(P.snijden.tariefPerM, state.thickness) +
+    g.piercings * P.snijden.insteek +
+    (g.graveerM ?? 0) * rateFor(P.snijden.tariefPerM, state.thickness) * P.optieTarieven.graveerFactor
 
   /* C. zetwerk */
   const bending = g.bends * P.zetten.perZetting + g.longBends * P.zetten.toeslagLang
@@ -447,13 +496,26 @@ export function validateConfig(state: ConfigState): ConfigValidation {
       state.deco.text.trim() ? state.deco.ts * h : Infinity,
       state.deco.nr.trim() ? state.deco.ns * h : Infinity,
     )
-    if (letterH !== Infinity && letterH < 30) {
-      warnings.push('Letters kleiner dan 30 mm snijden niet strak uit; maak de tekst of het bord iets groter.')
+    if (letterH !== Infinity && letterH < 30 && state.deco.mode === 'uitsnede') {
+      warnings.push('Letters kleiner dan 30 mm snijden niet strak uit; maak de tekst groter of kies graveren.')
     }
     if (!state.deco.text.trim() && !state.deco.nr.trim() && !state.deco.fig) {
       warnings.push('Het bord is nu leeg — voeg tekst, een huisnummer of een figuur toe.')
     }
-    warnings.push('Losse binnenstukken van letters (zoals in O en A) worden stencil-vast meegesneden.')
+    if (state.deco.mode === 'uitsnede') {
+      warnings.push('Losse binnenstukken van letters (zoals in O en A) worden stencil-vast meegesneden.')
+    }
+  }
+  // accent-ontwerp: doorlaseren in grondkerende wanden laat grond/water door
+  if (
+    configType(state.typeId).deco === 'accent' &&
+    state.deco?.mode === 'uitsnede' &&
+    (state.deco.fig || state.deco.text.trim()) &&
+    (state.typeId === 'plantenbak' || state.typeId === 'keerwand' || state.typeId === 'borderrand')
+  ) {
+    warnings.push(
+      'Een doorgelaserd motief laat grond en water door de wand; kies graveren of plaats het motief bewust.',
+    )
   }
   if ((state.typeId === 'staptegel' || state.typeId === 'naambord') && state.deco?.fig) {
     const basis = state.typeId === 'staptegel' ? l : h

@@ -46,8 +46,10 @@ export type FlatPart = {
   rond?: boolean
   /** Vrije buitencontour(en) in mm — het silhouet ís dan het onderdeel. */
   contouren?: [number, number][][]
-  /** Binnen-uitsnedes in mm (motieven, figuren). */
+  /** Binnen-uitsnedes in mm (motieven, figuren) — laag SNIJDEN. */
   uitsnedes?: [number, number][][]
+  /** Graveercontouren in mm — laag GRAVEREN (niet snijden). */
+  gravures?: [number, number][][]
   /** Uit te snijden teksten: positie/hoogte in mm; contouren zet de WVB om. */
   teksten?: { x: number; y: number; h: number; value: string }[]
 }
@@ -114,6 +116,67 @@ function figPathsMm(paths: FigurePath[], hMm: number, cx: number, cy: number): [
   )
 }
 
+/**
+ * Accent-ontwerp (figuur/tekst, doorgelaserd of gegraveerd) en het
+ * Cortemo-merkje op de uitslag van het voorvlak zetten. faceW/faceH is het
+ * zichtvlak in mm; offX/offY is waar dat vlak in de uitslag begint.
+ */
+function applyDeco(
+  part: FlatPart,
+  state: ConfigState,
+  faceW: number,
+  faceH: number,
+  offX: number,
+  offY: number,
+): void {
+  const d = state.deco
+  if (!d) return
+  const paths = decoFigPaths(state)
+  if (paths.length) {
+    const figH = d.s * faceH
+    const contouren = figPathsMm(
+      paths,
+      figH,
+      offX + d.x * (faceW - figH) + figH / 2,
+      offY + (1 - d.y) * (faceH - figH) + figH / 2,
+    )
+    if (d.mode === 'graveren') part.gravures = [...(part.gravures ?? []), ...contouren]
+    else part.uitsnedes = [...(part.uitsnedes ?? []), ...contouren]
+  }
+  if (d.text.trim()) {
+    const lijnen = d.text.split('\n').filter((r) => r.trim() !== '')
+    const lijnH = d.ts * faceH
+    part.teksten = part.teksten ?? []
+    lijnen.forEach((regel, i) => {
+      const offset = (lijnen.length / 2 - i - 0.5) * lijnH
+      part.teksten!.push({
+        x: r1(offX + d.tx * faceW),
+        y: r1(offY + (1 - d.ty) * faceH + offset),
+        h: r1(lijnH),
+        value: regel.trim(),
+      })
+    })
+    part.notities.push(
+      d.mode === 'graveren'
+        ? 'Tekst lasergraveren (GRAVEREN-laag, niet snijden).'
+        : 'Tekst doorlaseren (stencil); contouren zet de WVB om vanuit het font.',
+    )
+  }
+  if (d.logo) {
+    part.teksten = part.teksten ?? []
+    const logoH = Math.min(18, Math.max(10, faceH * 0.035))
+    part.teksten.push({
+      x: r1(offX + faceW - 60),
+      y: r1(offY + logoH),
+      h: r1(logoH),
+      value: 'CORTEMO.',
+    })
+    part.notities.push('Cortemo-merkje graveren (rechtsonder, GRAVEREN-laag).')
+  } else {
+    part.notities.push('White label: géén Cortemo-merkje aanbrengen.')
+  }
+}
+
 /** Onderdelen + uitslagen voor een configuratie. */
 export function workOrderFor(state: ConfigState): WorkOrder {
   const P = getPricing()
@@ -158,6 +221,8 @@ export function workOrderFor(state: ConfigState): WorkOrder {
           ],
           notities: ['Sluitnaad in de 4e hoek lassen en strak slijpen (zichtnaad).'],
         })
+        applyDeco(parts[parts.length - 1], state, l, h, 0, 0)
+        parts[parts.length - 1].notities.push('Ontwerp/merk op de voorzijde = eerste flens van de uitslag.')
       } else {
         // strip past niet op de kantbank: in gelijke delen, hoeken die in een
         // deel vallen worden gezet, deelovergangen worden gelaste zichtnaden
@@ -187,6 +252,8 @@ export function workOrderFor(state: ConfigState): WorkOrder {
             notities: ['Deelovergangen lassen en strak slijpen (zichtnaad).'],
           })
         }
+        applyDeco(parts[0], state, parts[0].breedte, h, 0, 0)
+        parts[0].notities.push('Ontwerp/merk op de voorzijde: positioneren binnen deel 1 (WVB controleert t.o.v. hoeknaden).')
         notities.push(
           `Wand groter dan de kantbank (${P.zetten.maxZetlengte} mm): ${segments} delen, hoeklassen volgens zichtnaadplan.`,
         )
@@ -236,6 +303,8 @@ export function workOrderFor(state: ConfigState): WorkOrder {
         ],
         notities: segments > 1 ? [`Koppelsets (${segments - 1}×) meeleveren.`] : [],
       })
+      applyDeco(parts[0], state, segL, h, 0, posities[0])
+      if (segments > 1) parts[0].notities.push('Ontwerp/merk alleen op segment 1 aanbrengen.')
       break
     }
 
@@ -263,6 +332,8 @@ export function workOrderFor(state: ConfigState): WorkOrder {
           ? [`Grondpennen (${segments * P.optieTarieven.pennenPerStuk}×) meeleveren; gaten ø9.`]
           : [],
       })
+      applyDeco(parts[0], state, stukL, h, 0, 0)
+      if (segments > 1) parts[0].notities.push('Ontwerp/merk alleen op stuk 1 aanbrengen.')
       break
     }
 
@@ -281,6 +352,8 @@ export function workOrderFor(state: ConfigState): WorkOrder {
           ? ['Organisch laserpatroon: patroon-DXF apart aanleveren vanuit ontwerp; niet in deze uitslag.']
           : [],
       })
+      applyDeco(parts[0], state, panelSplit ? l / 2 : l, h, 0, 0)
+      if (panelSplit) parts[0].notities.push('Ontwerp/merk alleen op paneeldeel 1 aanbrengen.')
       const staanderFlens = 60
       const { posities } = uitslag([staanderFlens, staanderFlens, staanderFlens, staanderFlens], bd)
       parts.push({
@@ -328,8 +401,16 @@ export function workOrderFor(state: ConfigState): WorkOrder {
         rond: true,
         gaten: [],
         zetlijnen: [],
-        uitsnedes,
-        notities: ['Beloopbaar: ontbramen en randen licht breken.'],
+        uitsnedes: d?.mode !== 'graveren' ? uitsnedes : [],
+        gravures: d?.mode === 'graveren' ? uitsnedes : [],
+        teksten: d?.logo
+          ? [{ x: r1(D / 2), y: 30, h: 12, value: 'CORTEMO.' }]
+          : [],
+        notities: [
+          'Beloopbaar: ontbramen en randen licht breken.',
+          ...(d?.mode === 'graveren' && paths.length ? ['Motief lasergraveren (GRAVEREN-laag).'] : []),
+          ...(d?.logo ? ['Cortemo-merkje graveren (onderrand).'] : ['White label: géén Cortemo-merkje aanbrengen.']),
+        ],
       })
       break
     }
@@ -357,6 +438,9 @@ export function workOrderFor(state: ConfigState): WorkOrder {
       if (d?.nr.trim()) {
         teksten.push({ x: r1(d.nx * l), y: r1((1 - d.ny) * h), h: r1(d.ns * h), value: d.nr.trim() })
       }
+      if (d?.logo) {
+        teksten.push({ x: r1(l - 55), y: 14, h: 10, value: 'CORTEMO.' })
+      }
       parts.push({
         id: 'naambord',
         naam: 'Naambord',
@@ -371,15 +455,16 @@ export function workOrderFor(state: ConfigState): WorkOrder {
           { x: l - inset, y: h - inset, d: 6 },
         ],
         zetlijnen: [],
-        uitsnedes:
-          paths.length && d
-            ? figPathsMm(
+        ...(paths.length && d
+          ? {
+              [d.mode === 'graveren' ? 'gravures' : 'uitsnedes']: figPathsMm(
                 paths,
                 figH,
                 l / 2 + (d.x - 0.5) * (l - figH),
                 h / 2 - (d.y - 0.5) * (h - figH),
-              )
-            : [],
+              ),
+            }
+          : {}),
         teksten,
         notities: [
           `Teksten uitsnijden (stencil) in lettertype "${
@@ -534,6 +619,7 @@ export function dxfFor(part: FlatPart, orderRef: string): string {
   const entities: string[] = [
     ...outer,
     ...(part.uitsnedes ?? []).map((pts) => dxfPolyline(pts, 'SNIJDEN')),
+    ...(part.gravures ?? []).map((pts) => dxfPolyline(pts, 'GRAVEREN')),
     ...part.gaten.map((g) => dxfCircle(g.x, g.y, g.d, 'GATEN')),
     ...part.zetlijnen.map((z) =>
       z.as === 'x'

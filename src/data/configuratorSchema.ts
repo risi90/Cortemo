@@ -47,9 +47,11 @@ export type ConfigType = {
   /**
    * Ontwerp-editor: 'uitsnede' = figuur als gat in de plaat (staptegel),
    * 'bord' = tekst + huisnummer + figuur uitgesneden (naambord),
-   * 'vorm' = het figuur ís het product (silhouet). Alles versleepbaar.
+   * 'vorm' = het figuur ís het product (silhouet),
+   * 'accent' = subtiel figuur/tekst op het vlak van een plaatproduct
+   * (doorgelaserd of gegraveerd). Alles versleepbaar.
    */
-  deco?: 'uitsnede' | 'bord' | 'vorm'
+  deco?: 'uitsnede' | 'bord' | 'vorm' | 'accent'
   /** 'rond' rendert/rekent als schijf (dim l = diameter). */
   shape?: 'rond'
 }
@@ -116,6 +118,8 @@ export const PRICING = {
     overlapBorder: 60,
     /** Snijlengte per uitgesneden letter/cijfer = factor × letterhoogte. */
     letterFactor: 3.2,
+    /** Lasergraveren kost deze factor × het snijtarief per meter. */
+    graveerFactor: 0.4,
   },
   /** F. Order, verpakking & transport */
   order: {
@@ -170,6 +174,7 @@ export const CONFIG_TYPES: ConfigType[] = [
       { id: 'wielen', label: 'Verrijdbaar (wieltjes)', price: 39, weightKg: 4 },
       { id: 'roest', label: 'Versneld roestproces', price: 45 },
     ],
+    deco: 'accent',
   },
   {
     id: 'keerwand',
@@ -185,6 +190,7 @@ export const CONFIG_TYPES: ConfigType[] = [
       { id: 'coating', label: 'Anti-uitspoeling coating', price: 29 },
       { id: 'roest', label: 'Versneld roestproces', price: 45 },
     ],
+    deco: 'accent',
   },
   {
     id: 'borderrand',
@@ -200,6 +206,7 @@ export const CONFIG_TYPES: ConfigType[] = [
       { id: 'pennen', label: 'Grondpennen (per meter)', price: 7, weightKg: 1 },
       { id: 'roest', label: 'Versneld roestproces', price: 25 },
     ],
+    deco: 'accent',
   },
   {
     id: 'schutting',
@@ -216,6 +223,7 @@ export const CONFIG_TYPES: ConfigType[] = [
       { id: 'poeren', label: 'Betonpoeren (2 stuks)', price: 49, weightKg: 38 },
       { id: 'roest', label: 'Versneld roestproces', price: 45 },
     ],
+    deco: 'accent',
   },
   {
     id: 'staptegel',

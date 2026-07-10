@@ -223,13 +223,16 @@ export default function Configurator3D({
       .map((d) => `${d.label.charAt(0)} ${dims[d.key]}`)
       .join(' × ')
     const decoLines: string[] = []
+    const decoMode = deco?.mode === 'graveren' ? 'gegraveerd' : 'doorgelaserd'
     if (deco?.fig) {
       decoLines.push(
-        deco.fig === 'custom' ? 'Eigen silhouet (foto)' : 'Figuur: ' + (figure(deco.fig)?.label ?? deco.fig),
+        (deco.fig === 'custom' ? 'Eigen silhouet (foto)' : 'Figuur: ' + (figure(deco.fig)?.label ?? deco.fig)) +
+          (type.deco === 'vorm' ? '' : ', ' + decoMode),
       )
     }
-    if (deco?.text.trim()) decoLines.push('Tekst: “' + deco.text.trim() + '”')
+    if (deco?.text.trim()) decoLines.push('Tekst: “' + deco.text.trim().replace(/\n/g, ' / ') + '” (' + decoMode + ')')
     if (deco?.nr.trim()) decoLines.push('Nummer: ' + deco.nr.trim())
+    if (deco && type.deco !== 'vorm' && !deco.logo) decoLines.push('White label (zonder Cortemo-merk)')
     onAdd({
       key: 'cfg:' + serializeCfg(state),
       productId: 'maatwerk-' + typeId,
@@ -388,26 +391,55 @@ export default function Configurator3D({
               }
               defaultOpen
             >
-              {type.deco === 'bord' && (
+              {type.deco !== 'vorm' && (
+                <div className="mb-3 flex gap-2">
+                  {(
+                    [
+                      ['uitsnede', 'Doorlaseren', 'écht gat door de plaat'],
+                      ['graveren', 'Graveren', 'donkere markering, blijft dicht'],
+                    ] as const
+                  ).map(([id, label, hint]) => (
+                    <button
+                      key={id}
+                      onClick={() => setDeco({ mode: id })}
+                      className={
+                        'flex-1 rounded-lg border px-2 py-2 text-left transition-all ' +
+                        (deco.mode === id
+                          ? 'border-rust bg-white/10'
+                          : 'border-transparent bg-white/5 hover:bg-white/10')
+                      }
+                    >
+                      <span className={'block text-[12px] font-semibold ' + (deco.mode === id ? 'text-white' : 'text-white/60')}>
+                        {label}
+                      </span>
+                      <span className="block text-[10px] text-white/40">{hint}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {(type.deco === 'bord' || type.deco === 'accent') && (
                 <div className="mb-3 space-y-2">
-                  <div className="grid grid-cols-[1fr_88px] gap-2">
+                  <div className={type.deco === 'bord' ? 'grid grid-cols-[1fr_88px] gap-2' : ''}>
                     <textarea
                       value={deco.text}
                       rows={Math.min(4, Math.max(2, deco.text.split('\n').length))}
                       onChange={(e) => setDeco({ text: e.target.value })}
                       placeholder={'Naam of tekst\nEnter = nieuwe regel'}
                       aria-label="Tekst op het bord (meerdere regels mogelijk)"
-                      className="resize-none rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-[16px] font-semibold leading-snug text-white outline-none placeholder:text-white/30 focus:border-rust sm:text-[13px]"
+                      className="w-full resize-none rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-[16px] font-semibold leading-snug text-white outline-none placeholder:text-white/30 focus:border-rust sm:text-[13px]"
                     />
-                    <input
-                      type="text"
-                      value={deco.nr}
-                      maxLength={6}
-                      onChange={(e) => setDeco({ nr: e.target.value })}
-                      placeholder="Nr."
-                      aria-label="Huisnummer"
-                      className="self-start rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-center text-[16px] font-semibold tabular-nums text-white outline-none placeholder:text-white/30 focus:border-rust sm:text-[13px]"
-                    />
+                    {type.deco === 'bord' && (
+                      <input
+                        type="text"
+                        value={deco.nr}
+                        maxLength={6}
+                        onChange={(e) => setDeco({ nr: e.target.value })}
+                        placeholder="Nr."
+                        aria-label="Huisnummer"
+                        className="self-start rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 text-center text-[16px] font-semibold tabular-nums text-white outline-none placeholder:text-white/30 focus:border-rust sm:text-[13px]"
+                      />
+                    )}
                   </div>
                   <div className="flex gap-2">
                     {(
@@ -486,7 +518,7 @@ export default function Configurator3D({
                 </button>
               </div>
 
-              {(deco.fig || type.deco === 'bord') && (
+              {(deco.fig || type.deco === 'bord' || type.deco === 'accent') && (
                 <div className="mt-3 space-y-2">
                   {deco.fig && (
                     <label className="block text-[12px] font-medium text-white/60">
@@ -502,40 +534,56 @@ export default function Configurator3D({
                       />
                     </label>
                   )}
-                  {type.deco === 'bord' && (
+                  {(type.deco === 'bord' || type.deco === 'accent') && (
                     <div className="grid grid-cols-2 gap-3">
                       <label className="block text-[12px] font-medium text-white/60">
                         Tekstgrootte
                         <input
                           type="range"
-                          min={10}
+                          min={type.deco === 'accent' ? 5 : 10}
                           max={70}
                           value={Math.round(deco.ts * 100)}
                           onChange={(e) => setDeco({ ts: +e.target.value / 100 })}
                           className="mt-1 h-1.5 w-full cursor-pointer accent-[#D95A2B]"
                         />
                       </label>
-                      <label className="block text-[12px] font-medium text-white/60">
-                        Nummergrootte
-                        <input
-                          type="range"
-                          min={10}
-                          max={80}
-                          value={Math.round(deco.ns * 100)}
-                          onChange={(e) => setDeco({ ns: +e.target.value / 100 })}
-                          className="mt-1 h-1.5 w-full cursor-pointer accent-[#D95A2B]"
-                        />
-                      </label>
+                      {type.deco === 'bord' && (
+                        <label className="block text-[12px] font-medium text-white/60">
+                          Nummergrootte
+                          <input
+                            type="range"
+                            min={10}
+                            max={80}
+                            value={Math.round(deco.ns * 100)}
+                            onChange={(e) => setDeco({ ns: +e.target.value / 100 })}
+                            className="mt-1 h-1.5 w-full cursor-pointer accent-[#D95A2B]"
+                          />
+                        </label>
+                      )}
                     </div>
                   )}
                 </div>
               )}
 
               {type.deco !== 'vorm' && (
-                <p className="mt-2 text-[11px] leading-relaxed text-white/40">
-                  Sleep {type.deco === 'bord' ? 'tekst, nummer en figuur' : 'het figuur'} direct in
-                  het 3D-beeld; in de buurt van het midden snapt alles vast (oranje hulplijn).
-                </p>
+                <>
+                  <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 rounded-lg bg-white/5 px-3 py-2.5">
+                    <span className="flex items-center gap-2.5 text-[13px] text-white/80">
+                      <input
+                        type="checkbox"
+                        checked={deco.logo}
+                        onChange={() => setDeco({ logo: !deco.logo })}
+                        className="h-4 w-4 rounded accent-[#D95A2B]"
+                      />
+                      Subtiel CORTEMO-merkje (gegraveerd)
+                    </span>
+                    <span className="text-[11px] text-white/40">uit = white label, gratis</span>
+                  </label>
+                  <p className="mt-2 text-[11px] leading-relaxed text-white/40">
+                    Sleep {type.deco === 'bord' ? 'tekst, nummer en figuur' : 'figuur en tekst'} direct
+                    in het 3D-beeld; in de buurt van het midden snapt alles vast (oranje hulplijn).
+                  </p>
+                </>
               )}
             </Section>
           )}
