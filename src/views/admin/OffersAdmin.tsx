@@ -64,6 +64,7 @@ function Composer({
     total,
     note,
     validUntil,
+    projectId: '',
     status,
   })
 
@@ -205,6 +206,7 @@ export function OffersAdmin({ draft, onDraftUsed }: { draft: OfferDraft | null; 
       total: offer.total,
       discountCode: offer.discount > 0 ? 'offerte ' + Math.round(offer.discount * 100) + '%' : '',
       discountAmount: Math.round(offer.lines.reduce((s, l) => s + l.price * l.qty, 0) * offer.discount * 100) / 100,
+      projectId: offer.projectId,
       status: 'nieuw',
     })
     setConverted((s) => ({ ...s, [offer.id]: orderId }))

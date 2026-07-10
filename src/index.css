@@ -47,6 +47,25 @@ body {
   color: #b4430e;
 }
 
+/* factuur printen: alleen het factuurvel is zichtbaar op papier */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .invoice-sheet,
+  .invoice-sheet * {
+    visibility: visible;
+  }
+  .invoice-sheet {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    max-width: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
 /* zichtbare focus voor toetsenbordgebruik (2.4.7, 2.4.11) */
 :focus-visible {
   outline: 2px solid #e06a35;

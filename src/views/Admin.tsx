@@ -28,21 +28,26 @@ import {
   saveDiscount,
   fetchOrders,
   fetchPartners,
+  fetchProjects,
   getMailings,
   getOrders,
+  getProjects,
   getPartners,
   getQuotes,
   hasBackend,
   isAdminAuthed,
   sendMailing,
   sendStatusMail,
+  setOrderProject,
   setOrderStatus,
   setPartnerDiscount,
   signInAdmin,
   signOutAdmin,
   type Order,
   type OrderStatus,
+  type Project,
 } from '../lib/adminStore'
+import { InvoiceView } from '../components/InvoiceView'
 import { PricingAdmin } from './admin/PricingAdmin'
 import { ProductsAdmin } from './admin/ProductsAdmin'
 import { CalculationAdmin } from './admin/CalculationAdmin'
@@ -177,6 +182,13 @@ function Dashboard({ orders }: { orders: Order[] }) {
 function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]) => void }) {
   const [openId, setOpenId] = useState<string | null>(null)
   const [mailState, setMailState] = useState<Record<string, string>>({})
+  const [projects, setProjects] = useState<Project[]>([])
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
+
+  useEffect(() => {
+    setProjects(getProjects())
+    void fetchProjects().then(setProjects)
+  }, [])
 
   const mailStatus = async (o: Order) => {
     setMailState((s) => ({ ...s, [o.id]: 'bezig' }))
@@ -272,6 +284,28 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
                   )}
                   <div className="flex flex-wrap items-center gap-3">
                     <button
+                      onClick={() => setInvoiceOrder(o)}
+                      className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-[12px] font-semibold text-white hover:border-rust"
+                    >
+                      <FileText size={12} strokeWidth={2} /> Factuur F-{o.id}
+                    </button>
+                    <select
+                      value={o.projectId || ''}
+                      onChange={(e) => setOrders(setOrderProject(o.id, e.target.value))}
+                      aria-label={'Project van order ' + o.id}
+                      className="rounded-lg border border-white/15 bg-white/5 px-2 py-2 text-[12px] font-semibold text-white outline-none focus:border-rust"
+                      style={{ colorScheme: 'dark' }}
+                    >
+                      <option value="" style={{ backgroundColor: '#14191E' }}>
+                        Geen project
+                      </option>
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id} style={{ backgroundColor: '#14191E' }}>
+                          {p.id} · {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
                       onClick={() => void mailStatus(o)}
                       disabled={mailState[o.id] === 'bezig'}
                       className="flex items-center gap-1.5 rounded-lg bg-rust px-3 py-2 text-[12px] font-semibold text-white hover:bg-rust-deep disabled:opacity-60"
@@ -295,6 +329,7 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
           ))}
         </ul>
       )}
+      {invoiceOrder && <InvoiceView order={invoiceOrder} onClose={() => setInvoiceOrder(null)} />}
     </Card>
   )
 }

@@ -64,6 +64,7 @@ export function Checkout({
       total,
       discountCode: discount?.code ?? '',
       discountAmount,
+      projectId: '',
       status: 'nieuw',
     })
     setPlaced(id)

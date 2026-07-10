@@ -106,6 +106,7 @@ export type Order = {
   total: number
   discountCode: string
   discountAmount: number
+  projectId: string
   status: OrderStatus
 }
 
@@ -127,6 +128,7 @@ export function saveOrder(order: Order): void {
       total: order.total,
       discount_code: order.discountCode,
       discount_amount: order.discountAmount,
+      project_id: order.projectId || null,
       status: order.status,
     }),
   )
@@ -151,6 +153,7 @@ export async function fetchOrders(): Promise<Order[]> {
         total: Number(r.total),
         discountCode: r.discount_code ?? '',
         discountAmount: Number(r.discount_amount ?? 0),
+        projectId: r.project_id ?? '',
         status: r.status as OrderStatus,
       }))
       write(ORDERS_KEY, orders)
@@ -601,6 +604,99 @@ export async function sendMailing(
   return { recipients }
 }
 
+/* ---------- projecten ---------- */
+
+export type Project = {
+  id: string
+  date: string
+  partnerEmail: string
+  name: string
+  reference: string
+  siteAddress: string
+  status: 'actief' | 'afgerond'
+}
+
+const PROJECTS_KEY = 'cortemo-projects'
+
+export const getProjects = (): Project[] => read<Project[]>(PROJECTS_KEY, [])
+
+export async function fetchProjects(): Promise<Project[]> {
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('cortemo_projects')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (!error && data) {
+        const projects = data.map((r) => ({
+          id: r.id,
+          date: r.created_at,
+          partnerEmail: r.partner_email,
+          name: r.name,
+          reference: r.reference,
+          siteAddress: r.site_address,
+          status: r.status as Project['status'],
+        }))
+        write(PROJECTS_KEY, projects)
+        return projects
+      }
+    }
+  } catch {
+    /* netwerkfout: val terug op de lokale cache */
+  }
+  return getProjects()
+}
+
+export function saveProject(project: Project): Project[] {
+  const next = [project, ...getProjects().filter((p) => p.id !== project.id)]
+  write(PROJECTS_KEY, next)
+  fire(
+    supabase?.from('cortemo_projects').upsert({
+      id: project.id,
+      partner_email: project.partnerEmail,
+      name: project.name,
+      reference: project.reference,
+      site_address: project.siteAddress,
+      status: project.status,
+    }),
+  )
+  return next
+}
+
+export function setOrderProject(orderId: string, projectId: string): Order[] {
+  const next = getOrders().map((o) => (o.id === orderId ? { ...o, projectId } : o))
+  write(ORDERS_KEY, next)
+  fire(supabase?.from('cortemo_orders').update({ project_id: projectId || null }).eq('id', orderId))
+  return next
+}
+
+export function setOfferStatus(id: string, status: OfferStatus): Offer[] {
+  const next = getOffers().map((o) => (o.id === id ? { ...o, status } : o))
+  write(OFFERS_KEY, next)
+  fire(supabase?.from('cortemo_offers').update({ status }).eq('id', id))
+  return next
+}
+
+/* ---------- partner-datatoegang (RLS filtert op de ingelogde partner) ---------- */
+
+export async function fetchPartnerOrders(partner: Partner): Promise<Order[]> {
+  const all = await fetchOrders().catch(() => getOrders())
+  // met live backend filtert RLS al; de e-mailfilter dekt de demo-modus
+  return all.filter(
+    (o) => o.email.toLowerCase() === partner.email.toLowerCase() || getProjects().some((p) => p.id === o.projectId && p.partnerEmail === partner.email),
+  )
+}
+
+export async function fetchPartnerOffers(partner: Partner): Promise<Offer[]> {
+  const all = await fetchOffers().catch(() => getOffers())
+  return all.filter((o) => o.email.toLowerCase() === partner.email.toLowerCase())
+}
+
+export async function fetchPartnerProjects(partner: Partner): Promise<Project[]> {
+  const all = await fetchProjects()
+  return all.filter((p) => p.partnerEmail.toLowerCase() === partner.email.toLowerCase())
+}
+
 /* ---------- admin-sessie ---------- */
 
 const AUTH_KEY = 'cortemo-admin-auth'
@@ -654,6 +750,7 @@ export type Offer = {
   total: number
   note: string
   validUntil: string
+  projectId: string
   status: OfferStatus
 }
 
@@ -682,6 +779,7 @@ export async function fetchOffers(): Promise<Offer[]> {
         total: Number(r.total),
         note: r.note,
         validUntil: r.valid_until ?? '',
+        projectId: r.project_id ?? '',
         status: r.status as OfferStatus,
       }))
       write(OFFERS_KEY, offers)
@@ -707,6 +805,7 @@ export function saveOffer(offer: Offer): void {
     total: offer.total,
     note: offer.note,
     valid_until: offer.validUntil || null,
+    project_id: offer.projectId || null,
     status: offer.status,
     }),
   )
