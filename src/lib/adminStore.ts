@@ -424,6 +424,84 @@ export function signOutPartner(): void {
   )
 }
 
+/* ---------- kortingscodes ---------- */
+
+export type Discount = {
+  code: string
+  percent: number
+  active: boolean
+  expires: string
+}
+
+const DISCOUNTS_KEY = 'cortemo-discounts'
+
+export const getDiscounts = (): Discount[] => read<Discount[]>(DISCOUNTS_KEY, [])
+
+export async function fetchDiscounts(): Promise<Discount[]> {
+  try {
+    if (supabase) {
+      const { data, error } = await supabase.from('cortemo_discounts').select('*').order('code')
+      if (!error && data) {
+        const discounts = data.map((r) => ({
+          code: r.code,
+          percent: Number(r.percent),
+          active: r.active,
+          expires: r.expires ?? '',
+        }))
+        write(DISCOUNTS_KEY, discounts)
+        return discounts
+      }
+    }
+  } catch {
+    /* netwerkfout: val terug op de lokale cache */
+  }
+  return getDiscounts()
+}
+
+export function saveDiscount(discount: Discount): Discount[] {
+  const next = [discount, ...getDiscounts().filter((d) => d.code !== discount.code)]
+  write(DISCOUNTS_KEY, next)
+  fire(
+    supabase?.from('cortemo_discounts').upsert({
+      code: discount.code,
+      percent: discount.percent,
+      active: discount.active,
+      expires: discount.expires || null,
+    }),
+  )
+  return next
+}
+
+export function deleteDiscount(code: string): Discount[] {
+  const next = getDiscounts().filter((d) => d.code !== code)
+  write(DISCOUNTS_KEY, next)
+  fire(supabase?.from('cortemo_discounts').delete().eq('code', code))
+  return next
+}
+
+/** Valideert een code voor de checkout; RLS geeft anon alleen actieve codes. */
+export async function validateDiscount(code: string): Promise<number | null> {
+  const clean = code.trim().toUpperCase()
+  if (!clean) return null
+  try {
+    if (supabase) {
+      const { data } = await supabase
+        .from('cortemo_discounts')
+        .select('percent')
+        .eq('code', clean)
+        .maybeSingle()
+      if (data) return Number(data.percent)
+      return null
+    }
+  } catch {
+    /* netwerkfout: probeer de lokale cache */
+  }
+  const local = getDiscounts().find(
+    (d) => d.code === clean && d.active && (!d.expires || d.expires >= new Date().toISOString().slice(0, 10)),
+  )
+  return local ? local.percent : null
+}
+
 /* ---------- mailings ---------- */
 
 export type Mailing = {

@@ -21,8 +21,12 @@ import { euro, GROUPS, PRODUCTS } from '../data/catalog'
 import { PRICING } from '../data/configuratorSchema'
 import {
   addPartner,
+  deleteDiscount,
   deletePartner,
+  fetchDiscounts,
   fetchMailings,
+  getDiscounts,
+  saveDiscount,
   fetchOrders,
   fetchPartners,
   fetchPricing,
@@ -307,6 +311,7 @@ function ConfiguratorSettings() {
           {saved ? 'Opgeslagen — direct actief in de shop' : 'Opslaan'}
         </button>
       </Card>
+      <DiscountCodes />
       <Card title="Producttypes & maatgrenzen">
         <p className="text-[13px] leading-relaxed text-white/55">
           De vier producttypes met hun maatgrenzen, staaldiktes en opties staan in{' '}
@@ -317,6 +322,78 @@ function ConfiguratorSettings() {
         </p>
       </Card>
     </div>
+  )
+}
+
+function DiscountCodes() {
+  const [discounts, setDiscounts] = useState(getDiscounts)
+  const [draft, setDraft] = useState({ code: '', percent: 10, expires: '' })
+  const [error, setError] = useState('')
+  useEffect(() => {
+    void fetchDiscounts().then(setDiscounts)
+  }, [])
+
+  const add = () => {
+    const code = draft.code.trim().toUpperCase()
+    if (code.length < 3 || draft.percent <= 0 || draft.percent > 90) {
+      setError('Code (3+ tekens) en een percentage tussen 1 en 90 zijn verplicht.')
+      return
+    }
+    setError('')
+    setDiscounts(saveDiscount({ code, percent: draft.percent, active: true, expires: draft.expires }))
+    setDraft({ code: '', percent: 10, expires: '' })
+  }
+
+  return (
+    <Card title="Kortingscodes">
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-semibold text-white/70">Code</span>
+          <input type="text" value={draft.code} placeholder="LENTE10" onChange={(e) => setDraft((d) => ({ ...d, code: e.target.value.toUpperCase() }))} className={fieldSm + ' w-36 uppercase'} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-semibold text-white/70">Korting %</span>
+          <input type="number" min={1} max={90} value={draft.percent} onChange={(e) => setDraft((d) => ({ ...d, percent: +e.target.value }))} className={fieldSm + ' w-24 text-right tabular-nums'} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-semibold text-white/70">Vervalt (optioneel)</span>
+          <input type="date" value={draft.expires} onChange={(e) => setDraft((d) => ({ ...d, expires: e.target.value }))} className={fieldSm} style={{ colorScheme: 'dark' }} />
+        </label>
+        <button onClick={add} className="rounded-lg bg-rust px-4 py-2 text-[13px] font-semibold text-white hover:bg-rust-deep">
+          Toevoegen
+        </button>
+      </div>
+      {error && <p className="mt-2 text-[13px] font-medium text-rust">{error}</p>}
+      {discounts.length > 0 && (
+        <ul className="mt-4 divide-y divide-white/5">
+          {discounts.map((d) => (
+            <li key={d.code} className="flex flex-wrap items-center gap-3 py-2.5 text-[13px]">
+              <span className="w-32 font-bold tracking-wide">{d.code}</span>
+              <span className="tabular-nums text-white/60">{d.percent}%</span>
+              <span className="min-w-0 flex-1 text-[12px] text-white/45">
+                {d.expires ? 'geldig t/m ' + d.expires : 'geen vervaldatum'}
+              </span>
+              <button
+                onClick={() => setDiscounts(saveDiscount({ ...d, active: !d.active }))}
+                className={
+                  'rounded-lg px-2.5 py-1.5 text-[12px] font-semibold ' +
+                  (d.active ? 'bg-ok/20 text-ok' : 'bg-white/5 text-white/40')
+                }
+              >
+                {d.active ? 'actief' : 'inactief'}
+              </button>
+              <button
+                onClick={() => setDiscounts(deleteDiscount(d.code))}
+                aria-label={'Verwijder code ' + d.code}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-white/40 hover:bg-white/10 hover:text-rust"
+              >
+                <Trash2 size={13} strokeWidth={2} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   )
 }
 

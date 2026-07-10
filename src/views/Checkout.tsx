@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ArrowRight, Check, Lock, ShoppingCart, Truck } from 'lucide-react'
 import { euro } from '../data/catalog'
 import { cartTotal, cartWeight, VAT_RATE, type CartItem } from '../lib/cart'
-import { saveOrder } from '../lib/adminStore'
+import { saveOrder, validateDiscount } from '../lib/adminStore'
 
 const PAYMENT_METHODS = ['iDEAL', 'Bancontact', 'Creditcard', 'Bankoverschrijving']
 
@@ -24,8 +24,24 @@ export function Checkout({
   const [form, setForm] = useState({ name: '', email: '', street: '', zip: '', city: '' })
   const set = (key: keyof typeof form) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }))
+  const [codeInput, setCodeInput] = useState('')
+  const [discount, setDiscount] = useState<{ code: string; percent: number } | null>(null)
+  const [codeMsg, setCodeMsg] = useState('')
 
-  const total = cartTotal(items)
+  const applyCode = async () => {
+    const percent = await validateDiscount(codeInput)
+    if (percent === null) {
+      setDiscount(null)
+      setCodeMsg('Deze code is niet (meer) geldig.')
+      return
+    }
+    setDiscount({ code: codeInput.trim().toUpperCase(), percent })
+    setCodeMsg('')
+  }
+
+  const subtotal = cartTotal(items)
+  const discountAmount = discount ? Math.round(subtotal * (discount.percent / 100) * 100) / 100 : 0
+  const total = subtotal - discountAmount
   const valid =
     form.name.trim().length > 1 &&
     /\S+@\S+\.\S+/.test(form.email) &&
@@ -46,8 +62,8 @@ export function Checkout({
       address: form.street + ', ' + form.zip + ' ' + form.city,
       items: items.map(({ name, qty, unitPrice, config }) => ({ name, qty, unitPrice, config })),
       total,
-      discountCode: '',
-      discountAmount: 0,
+      discountCode: discount?.code ?? '',
+      discountAmount,
       status: 'nieuw',
     })
     setPlaced(id)
@@ -223,7 +239,36 @@ export function Checkout({
                 ± {cartWeight(items)} kg &middot; pallettransport &middot; 5 tot 8 werkdagen
               </span>
             </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Kortingscode"
+                value={codeInput}
+                onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === 'Enter' && void applyCode()}
+                aria-label="Kortingscode"
+                className={field + ' min-w-0 flex-1 uppercase'}
+              />
+              <button
+                onClick={() => void applyCode()}
+                className="shrink-0 rounded-xl bg-white/10 px-4 text-[13px] font-semibold text-white transition-colors hover:bg-white/15"
+              >
+                Pas toe
+              </button>
+            </div>
+            {codeMsg && <p className="-mt-2 text-[12px] font-medium text-rust">{codeMsg}</p>}
+            {discount && (
+              <p className="-mt-2 text-[12px] font-semibold text-ok">
+                Code {discount.code} toegepast: −{discount.percent}%
+              </p>
+            )}
             <div className="space-y-1 border-t border-white/10 pt-4 text-[13px]">
+              {discount && (
+                <div className="flex justify-between text-white/55">
+                  <span>Korting ({discount.code})</span>
+                  <span className="tabular-nums">−{euro(discountAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-white/55">
                 <span>Subtotaal excl. btw</span>
                 <span className="tabular-nums">{euro(total / (1 + VAT_RATE))}</span>
