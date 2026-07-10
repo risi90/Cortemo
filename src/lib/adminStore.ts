@@ -27,6 +27,16 @@ function write(key: string, value: unknown) {
   }
 }
 
+
+/**
+ * Vuur-en-vergeet naar de database. PostgREST-queries zijn lazy (ze vuren
+ * pas bij .then/await), dus expliciet uitvoeren; fouten negeren we omdat
+ * localStorage de bron van waarheid blijft tot de volgende fetch.
+ */
+function fire(query: PromiseLike<unknown> | undefined) {
+  void query?.then(undefined, () => {})
+}
+
 export { hasBackend }
 
 /* ---------- catalogus ---------- */
@@ -85,7 +95,8 @@ export const getOrders = (): Order[] => read<Order[]>(ORDERS_KEY, [])
 export function saveOrder(order: Order): void {
   write(ORDERS_KEY, [order, ...getOrders()])
   // fire-and-forget naar de database; de bestelling is lokaal al geborgd
-  void supabase?.from('cortemo_orders').insert({
+  fire(
+    supabase?.from('cortemo_orders').insert({
     id: order.id,
     name: order.name,
     email: order.email,
@@ -93,11 +104,13 @@ export function saveOrder(order: Order): void {
     items: order.items,
     total: order.total,
     status: order.status,
-  })
+    }),
+  )
 }
 
 export async function fetchOrders(): Promise<Order[]> {
-  if (supabase) {
+  try {
+    if (supabase) {
     const { data, error } = await supabase
       .from('cortemo_orders')
       .select('*')
@@ -117,13 +130,18 @@ export async function fetchOrders(): Promise<Order[]> {
       return orders
     }
   }
+  } catch {
+    /* netwerkfout: val terug op de lokale cache */
+  }
   return getOrders()
 }
 
 export function setOrderStatus(id: string, status: OrderStatus): Order[] {
   const next = getOrders().map((o) => (o.id === id ? { ...o, status } : o))
   write(ORDERS_KEY, next)
-  void supabase?.from('cortemo_orders').update({ status }).eq('id', id)
+  fire(
+    supabase?.from('cortemo_orders').update({ status }).eq('id', id),
+  )
   return next
 }
 
@@ -146,7 +164,8 @@ export const getQuotes = (): Quote[] => read<Quote[]>(QUOTES_KEY, [])
 
 export function saveQuote(quote: Quote): void {
   write(QUOTES_KEY, [quote, ...getQuotes()])
-  void supabase?.from('cortemo_quotes').insert({
+  fire(
+    supabase?.from('cortemo_quotes').insert({
     id: quote.id,
     type: quote.type,
     dims: quote.dims,
@@ -154,11 +173,13 @@ export function saveQuote(quote: Quote): void {
     email: quote.email,
     note: quote.note,
     handled: quote.handled,
-  })
+    }),
+  )
 }
 
 export async function fetchQuotes(): Promise<Quote[]> {
-  if (supabase) {
+  try {
+    if (supabase) {
     const { data, error } = await supabase
       .from('cortemo_quotes')
       .select('*')
@@ -178,13 +199,18 @@ export async function fetchQuotes(): Promise<Quote[]> {
       return quotes
     }
   }
+  } catch {
+    /* netwerkfout: val terug op de lokale cache */
+  }
   return getQuotes()
 }
 
 export function setQuoteHandled(id: string, handled: boolean): Quote[] {
   const next = getQuotes().map((q) => (q.id === id ? { ...q, handled } : q))
   write(QUOTES_KEY, next)
-  void supabase?.from('cortemo_quotes').update({ handled }).eq('id', id)
+  fire(
+    supabase?.from('cortemo_quotes').update({ handled }).eq('id', id),
+  )
   return next
 }
 
@@ -202,7 +228,8 @@ export function getPricing(): PricingSettings {
 
 /** Haalt de tarieven uit de database en ververst de lokale cache. */
 export async function fetchPricing(): Promise<PricingSettings> {
-  if (supabase) {
+  try {
+    if (supabase) {
     const { data } = await supabase
       .from('cortemo_settings')
       .select('value')
@@ -213,12 +240,17 @@ export async function fetchPricing(): Promise<PricingSettings> {
       return { ...PRICING, ...data.value }
     }
   }
+  } catch {
+    /* netwerkfout: val terug op de lokale cache */
+  }
   return getPricing()
 }
 
 export function savePricing(settings: PricingSettings): void {
   write(PRICING_KEY, settings)
-  void supabase?.from('cortemo_settings').upsert({ key: 'pricing', value: settings })
+  fire(
+    supabase?.from('cortemo_settings').upsert({ key: 'pricing', value: settings }),
+  )
 }
 
 export function resetPricing(): void {
@@ -227,7 +259,9 @@ export function resetPricing(): void {
   } catch {
     /* ignore */
   }
-  void supabase?.from('cortemo_settings').upsert({ key: 'pricing', value: PRICING })
+  fire(
+    supabase?.from('cortemo_settings').upsert({ key: 'pricing', value: PRICING }),
+  )
 }
 
 /* ---------- b2b-partners ---------- */
@@ -270,7 +304,8 @@ const DEFAULT_PARTNERS: Partner[] = [
 export const getPartners = (): Partner[] => read<Partner[]>(PARTNERS_KEY, DEFAULT_PARTNERS)
 
 export async function fetchPartners(): Promise<Partner[]> {
-  if (supabase) {
+  try {
+    if (supabase) {
     const { data, error } = await supabase.from('cortemo_partners').select('*').order('company')
     if (!error && data) {
       const partners = data.map((r) => ({
@@ -284,13 +319,18 @@ export async function fetchPartners(): Promise<Partner[]> {
       return partners
     }
   }
+  } catch {
+    /* netwerkfout: val terug op de lokale cache */
+  }
   return getPartners()
 }
 
 export function setPartnerDiscount(id: string, discount: number): Partner[] {
   const next = getPartners().map((p) => (p.id === id ? { ...p, discount } : p))
   write(PARTNERS_KEY, next)
-  void supabase?.from('cortemo_partners').update({ discount }).eq('id', id)
+  fire(
+    supabase?.from('cortemo_partners').update({ discount }).eq('id', id),
+  )
   return next
 }
 
@@ -334,7 +374,9 @@ export function signOutPartner(): void {
   } catch {
     /* ignore */
   }
-  void supabase?.auth.signOut()
+  fire(
+    supabase?.auth.signOut(),
+  )
 }
 
 /* ---------- mailings ---------- */
@@ -353,7 +395,8 @@ const MAILINGS_KEY = 'cortemo-mailings'
 export const getMailings = (): Mailing[] => read<Mailing[]>(MAILINGS_KEY, [])
 
 export async function fetchMailings(): Promise<Mailing[]> {
-  if (supabase) {
+  try {
+    if (supabase) {
     const { data, error } = await supabase
       .from('cortemo_mailings')
       .select('*')
@@ -370,6 +413,9 @@ export async function fetchMailings(): Promise<Mailing[]> {
       write(MAILINGS_KEY, mailings)
       return mailings
     }
+  }
+  } catch {
+    /* netwerkfout: val terug op de lokale cache */
   }
   return getMailings()
 }
@@ -435,5 +481,196 @@ export async function signInAdmin(
 
 export function signOutAdmin(): void {
   write(AUTH_KEY, false)
-  void supabase?.auth.signOut()
+  fire(
+    supabase?.auth.signOut(),
+  )
+}
+
+/* ---------- uitgaande offertes ---------- */
+
+export type OfferLine = { descr: string; qty: number; price: number }
+
+export type OfferStatus = 'concept' | 'verzonden' | 'geaccepteerd' | 'afgewezen'
+
+export type Offer = {
+  id: string
+  date: string
+  customer: string
+  email: string
+  lines: OfferLine[]
+  /** Kortingsfractie (0.15 = 15%). */
+  discount: number
+  total: number
+  note: string
+  validUntil: string
+  status: OfferStatus
+}
+
+const OFFERS_KEY = 'cortemo-offers'
+
+export const getOffers = (): Offer[] => read<Offer[]>(OFFERS_KEY, [])
+
+export const offerTotal = (lines: OfferLine[], discount: number): number =>
+  Math.round(lines.reduce((s, l) => s + l.price * l.qty, 0) * (1 - discount) * 100) / 100
+
+export async function fetchOffers(): Promise<Offer[]> {
+  try {
+    if (supabase) {
+    const { data, error } = await supabase
+      .from('cortemo_offers')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (!error && data) {
+      const offers = data.map((r) => ({
+        id: r.id,
+        date: r.created_at,
+        customer: r.customer,
+        email: r.email,
+        lines: r.lines,
+        discount: Number(r.discount),
+        total: Number(r.total),
+        note: r.note,
+        validUntil: r.valid_until ?? '',
+        status: r.status as OfferStatus,
+      }))
+      write(OFFERS_KEY, offers)
+      return offers
+    }
+  }
+  } catch {
+    /* netwerkfout: val terug op de lokale cache */
+  }
+  return getOffers()
+}
+
+export function saveOffer(offer: Offer): void {
+  const rest = getOffers().filter((o) => o.id !== offer.id)
+  write(OFFERS_KEY, [offer, ...rest])
+  fire(
+    supabase?.from('cortemo_offers').upsert({
+    id: offer.id,
+    customer: offer.customer,
+    email: offer.email,
+    lines: offer.lines,
+    discount: offer.discount,
+    total: offer.total,
+    note: offer.note,
+    valid_until: offer.validUntil || null,
+    status: offer.status,
+    }),
+  )
+}
+
+export function deleteOffer(id: string): Offer[] {
+  const next = getOffers().filter((o) => o.id !== id)
+  write(OFFERS_KEY, next)
+  fire(
+    supabase?.from('cortemo_offers').delete().eq('id', id),
+  )
+  return next
+}
+
+/** Verstuurt de offerte per mail (edge function + Resend) en zet de status. */
+export async function sendOffer(offer: Offer): Promise<{ ok: boolean; error?: string }> {
+  if (supabase) {
+    const { data, error } = await supabase.functions.invoke('send-quote', {
+      body: {
+        id: offer.id,
+        customer: offer.customer,
+        email: offer.email,
+        lines: offer.lines,
+        discount: offer.discount,
+        total: offer.total,
+        note: offer.note,
+        validUntil: offer.validUntil,
+      },
+    })
+    let message = data?.error || error?.message
+    if (error && 'context' in error) {
+      try {
+        message = (await (error as { context: Response }).context.json()).error
+      } catch {
+        /* houd de generieke melding */
+      }
+    }
+    if (error || data?.error) return { ok: false, error: String(message) }
+  }
+  saveOffer({ ...offer, status: 'verzonden' })
+  return { ok: true }
+}
+
+/* ---------- product-CRUD (beheer volledig in de admin) ---------- */
+
+export async function insertProduct(product: DbProduct): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Geen database gekoppeld.' }
+  const { error } = await supabase.from('cortemo_products').insert({ ...product, sort: 999 })
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
+export async function updateProductFull(
+  id: string,
+  patch: Partial<Omit<DbProduct, 'id'>>,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Geen database gekoppeld.' }
+  const { error } = await supabase.from('cortemo_products').update(patch).eq('id', id)
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
+export async function deleteProduct(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!supabase) return { ok: false, error: 'Geen database gekoppeld.' }
+  const { error } = await supabase.from('cortemo_products').delete().eq('id', id)
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
+/* ---------- partnerbeheer ---------- */
+
+export async function addPartner(
+  partner: Omit<Partner, 'id'>,
+): Promise<{ ok: boolean; error?: string }> {
+  if (supabase) {
+    const { error } = await supabase.from('cortemo_partners').insert({
+      company: partner.company,
+      contact: partner.contact,
+      email: partner.email,
+      discount: partner.discount,
+    })
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
+  }
+  write(PARTNERS_KEY, [{ ...partner, id: 'p' + Date.now() }, ...getPartners()])
+  return { ok: true }
+}
+
+export async function deletePartner(id: string): Promise<void> {
+  write(PARTNERS_KEY, getPartners().filter((p) => p.id !== id))
+  await supabase?.from('cortemo_partners').delete().eq('id', id)
+}
+
+/* ---------- klanten (afgeleid uit orders) ---------- */
+
+export type Customer = {
+  name: string
+  email: string
+  orders: number
+  revenue: number
+  lastOrder: string
+}
+
+export function deriveCustomers(orders: Order[]): Customer[] {
+  const map = new Map<string, Customer>()
+  for (const o of orders) {
+    if (o.status === 'geannuleerd') continue
+    const existing = map.get(o.email)
+    if (existing) {
+      existing.orders += 1
+      existing.revenue += o.total
+      if (o.date > existing.lastOrder) existing.lastOrder = o.date
+    } else {
+      map.set(o.email, { name: o.name, email: o.email, orders: 1, revenue: o.total, lastOrder: o.date })
+    }
+  }
+  return [...map.values()].sort((a, b) => b.revenue - a.revenue)
 }

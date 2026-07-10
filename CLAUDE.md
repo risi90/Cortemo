@@ -27,8 +27,11 @@ procedurele basis met gescande PBR-maps (`public/img/textures/`, CC0 van
 ambientCG) voor kleur, normal en roughness. Configuraties worden
 geserialiseerd in het `cfg` URL-param (deelbaar/hervatbaar).
 
-Admin (`?page=admin`, ook via footerlink "Beheer"): `src/views/Admin.tsx`
-met datalaag in `src/lib/adminStore.ts`.
+Admin (`/beheer`, ook via footerlink "Beheer"): shell in `src/views/Admin.tsx`,
+secties in `src/views/admin/` (producten-CRUD, CPQ-calculatie, offertes,
+klanten), datalaag in `src/lib/adminStore.ts`. Let op: supabase-js-queries
+zijn lazy — fire-and-forget schrijfacties gaan via de `fire()`-helper,
+anders vuurt de query nooit.
 
 Backend: Supabase-project "Cortemo" (gulepwtnlmjpjwkatfiv, eu-central-1).
 `src/lib/supabase.ts` bevat de publieke URL + publishable key (veilig in

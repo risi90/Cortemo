@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  Calculator,
   ChevronLeft,
   FileText,
   FolderOpen,
@@ -8,19 +9,23 @@ import {
   Lock,
   Mail,
   Package,
+  Plus,
   Send,
   Settings2,
   SlidersHorizontal,
+  Trash2,
+  Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { euro, GROUPS, PRODUCTS } from '../data/catalog'
 import { PRICING } from '../data/configuratorSchema'
 import {
+  addPartner,
+  deletePartner,
   fetchMailings,
   fetchOrders,
   fetchPartners,
   fetchPricing,
-  fetchQuotes,
   getMailings,
   getOrders,
   getPartners,
@@ -33,20 +38,25 @@ import {
   sendMailing,
   setOrderStatus,
   setPartnerDiscount,
-  setQuoteHandled,
   signInAdmin,
   signOutAdmin,
-  updateProduct,
   type Order,
   type OrderStatus,
 } from '../lib/adminStore'
+import { ProductsAdmin } from './admin/ProductsAdmin'
+import { CalculationAdmin } from './admin/CalculationAdmin'
+import { OffersAdmin, type OfferDraft } from './admin/OffersAdmin'
+import { CustomersAdmin } from './admin/CustomersAdmin'
+import { Card, EmptyRow, field, fieldSm, fmtDate, Stat } from './admin/ui'
 
 type SectionId =
   | 'dashboard'
   | 'orders'
   | 'offertes'
+  | 'calculatie'
   | 'producten'
   | 'collecties'
+  | 'klanten'
   | 'configurator'
   | 'b2b'
   | 'mailings'
@@ -55,49 +65,16 @@ const SECTIONS: [SectionId, string, LucideIcon][] = [
   ['dashboard', 'Dashboard', LayoutDashboard],
   ['orders', 'Orders', Package],
   ['offertes', 'Offertes', FileText],
+  ['calculatie', 'Calculatie', Calculator],
   ['producten', 'Producten', FolderOpen],
   ['collecties', 'Collecties', SlidersHorizontal],
+  ['klanten', 'Klanten', Users],
   ['configurator', 'Configurator & prijzen', Settings2],
   ['b2b', 'B2B-partners', Handshake],
   ['mailings', 'Mailings', Mail],
 ]
 
 const ORDER_STATUSES: OrderStatus[] = ['nieuw', 'in productie', 'verzonden', 'geannuleerd']
-
-const field =
-  'w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-[16px] font-medium text-white outline-none transition placeholder:text-white/30 focus:border-rust sm:text-[14px]'
-
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
-
-function Card({ title, children, aside }: { title?: string; children: React.ReactNode; aside?: React.ReactNode }) {
-  return (
-    <div className="liquid-glass rounded-2xl p-5 text-white sm:p-6">
-      {(title || aside) && (
-        <div className="mb-4 flex items-baseline justify-between gap-3">
-          {title && <h2 className="text-[15px] font-bold">{title}</h2>}
-          {aside}
-        </div>
-      )}
-      {children}
-    </div>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="liquid-glass rounded-2xl p-5 text-white">
-      <div className="text-[11px] font-semibold uppercase tracking-[.12em] text-white/40">
-        {label}
-      </div>
-      <div className="mt-1 text-[24px] font-extrabold tabular-nums">{value}</div>
-    </div>
-  )
-}
-
-function EmptyRow({ children }: { children: React.ReactNode }) {
-  return <p className="py-6 text-center text-[13px] text-white/40">{children}</p>
-}
 
 /* ---------- secties ---------- */
 
@@ -112,7 +89,7 @@ function Dashboard({ orders }: { orders: Order[] }) {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Open orders" value={String(open.length)} />
         <Stat label="Omzet" value={euro(revenue)} />
-        <Stat label="Open offertes" value={String(quotes.filter((q) => !q.handled).length)} />
+        <Stat label="Open aanvragen" value={String(quotes.filter((q) => !q.handled).length)} />
         <Stat label="Producten" value={String(PRODUCTS.length)} />
       </div>
       <Card title="Recente orders">
@@ -159,6 +136,7 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
               <select
                 value={o.status}
                 onChange={(e) => setOrders(setOrderStatus(o.id, e.target.value as OrderStatus))}
+                aria-label={'Status van order ' + o.id}
                 className="rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-[12px] font-semibold text-white outline-none focus:border-rust"
                 style={{ colorScheme: 'dark' }}
               >
@@ -172,114 +150,6 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
           ))}
         </ul>
       )}
-    </Card>
-  )
-}
-
-function Quotes() {
-  const [quotes, setQuotes] = useState(getQuotes)
-  useEffect(() => {
-    void fetchQuotes().then(setQuotes)
-  }, [])
-  return (
-    <Card title="Offerte-aanvragen" aside={<span className="text-[12px] text-white/40">{quotes.length} totaal</span>}>
-      {quotes.length === 0 ? (
-        <EmptyRow>Nog geen aanvragen. Ze verschijnen hier zodra het maatwerkformulier wordt ingestuurd.</EmptyRow>
-      ) : (
-        <ul className="divide-y divide-white/5">
-          {quotes.map((q) => (
-            <li key={q.id} className="flex flex-wrap items-center gap-3 py-4">
-              <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-semibold">
-                  {q.type} {q.dims && <span className="text-white/50">· {q.dims}</span>}
-                </span>
-                <span className="block truncate text-[11px] text-white/45">
-                  {q.name} · {q.email} · {fmtDate(q.date)}
-                  {q.note && ' · ' + q.note}
-                </span>
-              </span>
-              <button
-                onClick={() => setQuotes(setQuoteHandled(q.id, !q.handled))}
-                className={
-                  'shrink-0 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors ' +
-                  (q.handled ? 'bg-ok/20 text-ok' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white')
-                }
-              >
-                {q.handled ? 'Afgehandeld' : 'Markeer afgehandeld'}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
-  )
-}
-
-function Products() {
-  const [drafts, setDrafts] = useState<Record<string, string>>({})
-  const [savedId, setSavedId] = useState<string | null>(null)
-
-  const save = async (id: string) => {
-    const price = parseFloat(drafts[id])
-    if (isNaN(price) || price <= 0) return
-    const ok = await updateProduct(id, { price })
-    if (ok) {
-      const product = PRODUCTS.find((p) => p.id === id)
-      if (product) product.price = price
-      setDrafts((d) => {
-        const { [id]: _removed, ...rest } = d
-        return rest
-      })
-      setSavedId(id)
-      setTimeout(() => setSavedId(null), 1500)
-    }
-  }
-
-  return (
-    <Card
-      title="Producten"
-      aside={
-        <span className="text-[12px] text-white/40">
-          {hasBackend ? 'live gekoppeld aan de database' : 'bron: src/data/catalog.ts'}
-        </span>
-      }
-    >
-      <ul className="divide-y divide-white/5">
-        {PRODUCTS.map((p) => (
-          <li key={p.id} className="flex items-center gap-3 py-2.5 text-[13px]">
-            <span className="min-w-0 flex-1 truncate font-semibold">{p.name}</span>
-            <span className="hidden text-white/45 sm:block">{p.sub}</span>
-            {hasBackend ? (
-              <span className="flex items-center gap-2">
-                <input
-                  type="number"
-                  step="1"
-                  value={drafts[p.id] ?? String(p.price)}
-                  onChange={(e) => setDrafts((d) => ({ ...d, [p.id]: e.target.value }))}
-                  aria-label={'Prijs van ' + p.name}
-                  className="w-24 rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-right text-[13px] font-semibold tabular-nums text-white outline-none focus:border-rust"
-                />
-                {drafts[p.id] !== undefined && drafts[p.id] !== String(p.price) && (
-                  <button
-                    onClick={() => void save(p.id)}
-                    className="rounded-lg bg-rust px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-rust-deep"
-                  >
-                    Opslaan
-                  </button>
-                )}
-                {savedId === p.id && <span className="text-[12px] font-semibold text-ok">✓</span>}
-              </span>
-            ) : (
-              <span className="font-bold tabular-nums">{euro(p.price)}</span>
-            )}
-          </li>
-        ))}
-      </ul>
-      <p className="mt-4 text-[12px] text-white/40">
-        {hasBackend
-          ? 'Prijswijzigingen gaan direct de database in en zijn meteen zichtbaar in de shop.'
-          : 'Zonder gekoppelde database is deze lijst alleen-lezen. Koppel Supabase (zie supabase/migrations) om prijzen en teksten hier direct te bewerken.'}
-      </p>
     </Card>
   )
 }
@@ -349,6 +219,7 @@ function ConfiguratorSettings() {
                 step="0.01"
                 value={settings[key]}
                 onChange={(e) => setSettings((s) => ({ ...s, [key]: +e.target.value }))}
+                aria-label={label}
                 className={field}
               />
               <div className="mt-1 text-[11px] text-white/40">{hint}</div>
@@ -371,8 +242,7 @@ function ConfiguratorSettings() {
           <code className="rounded bg-white/10 px-1.5 py-0.5 text-[12px]">
             src/data/configuratorSchema.ts
           </code>
-          . De tarieven hierboven overschrijven dat schema live. Volgende stap: ook de types en
-          opties hier bewerkbaar maken zodra er een database aan hangt.
+          . De tarieven hierboven overschrijven dat schema live.
         </p>
       </Card>
     </div>
@@ -381,11 +251,70 @@ function ConfiguratorSettings() {
 
 function Partners() {
   const [partners, setPartners] = useState(getPartners)
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState({ company: '', contact: '', email: '', discount: 10 })
+  const [error, setError] = useState('')
   useEffect(() => {
     void fetchPartners().then(setPartners)
   }, [])
+
+  const add = async () => {
+    if (draft.company.trim().length < 2 || !/\S+@\S+\.\S+/.test(draft.email)) {
+      setError('Vul minimaal bedrijfsnaam en een geldig e-mailadres in.')
+      return
+    }
+    setError('')
+    const result = await addPartner(draft)
+    if (!result.ok) {
+      setError(result.error || 'Toevoegen mislukt.')
+      return
+    }
+    setPartners(await fetchPartners())
+    setAdding(false)
+    setDraft({ company: '', contact: '', email: '', discount: 10 })
+  }
+
   return (
-    <Card title="B2B-partners" aside={<span className="text-[12px] text-white/40">{partners.length} actief</span>}>
+    <Card
+      title="B2B-partners"
+      aside={
+        !adding ? (
+          <button
+            onClick={() => setAdding(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-rust px-3 py-2 text-[12px] font-semibold text-white hover:bg-rust-deep"
+          >
+            <Plus size={13} strokeWidth={2} /> Nieuwe partner
+          </button>
+        ) : undefined
+      }
+    >
+      {adding && (
+        <div className="mb-4 space-y-3 rounded-xl bg-white/5 p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input type="text" placeholder="Bedrijfsnaam" value={draft.company} onChange={(e) => setDraft((d) => ({ ...d, company: e.target.value }))} className={fieldSm + ' w-full'} />
+            <input type="text" placeholder="Contactpersoon" value={draft.contact} onChange={(e) => setDraft((d) => ({ ...d, contact: e.target.value }))} className={fieldSm + ' w-full'} />
+            <input type="email" placeholder="E-mailadres" value={draft.email} onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))} className={fieldSm + ' w-full'} />
+            <label className="flex items-center gap-2 text-[13px] text-white/70">
+              korting
+              <input type="number" min={0} max={40} value={draft.discount} onChange={(e) => setDraft((d) => ({ ...d, discount: +e.target.value }))} className={fieldSm + ' w-20 text-right tabular-nums'} />
+              %
+            </label>
+          </div>
+          {error && <p className="text-[13px] font-medium text-rust">{error}</p>}
+          <div className="flex gap-2">
+            <button onClick={() => void add()} className="rounded-xl bg-rust px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-rust-deep">
+              Partner toevoegen
+            </button>
+            <button onClick={() => setAdding(false)} className="rounded-xl bg-white/5 px-5 py-2.5 text-[14px] font-semibold text-white/70 hover:bg-white/10 hover:text-white">
+              Annuleren
+            </button>
+          </div>
+          <p className="text-[11px] text-white/40">
+            Koppel daarna in Supabase-auth een account met dit e-mailadres zodat de partner kan
+            inloggen; de korting werkt direct in portal en configurator.
+          </p>
+        </div>
+      )}
       <ul className="divide-y divide-white/5">
         {partners.map((p) => (
           <li key={p.id} className="flex flex-wrap items-center gap-3 py-4">
@@ -403,10 +332,20 @@ function Partners() {
                 max={40}
                 value={p.discount}
                 onChange={(e) => setPartners(setPartnerDiscount(p.id, +e.target.value))}
+                aria-label={'Korting van ' + p.company}
                 className="w-16 rounded-lg border border-white/15 bg-white/5 px-2 py-1.5 text-right text-[13px] font-semibold tabular-nums text-white outline-none focus:border-rust"
               />
               %
             </label>
+            <button
+              onClick={() => {
+                void deletePartner(p.id).then(() => fetchPartners().then(setPartners))
+              }}
+              aria-label={'Verwijder ' + p.company}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-white/40 hover:bg-white/10 hover:text-rust"
+            >
+              <Trash2 size={13} strokeWidth={2} />
+            </button>
           </li>
         ))}
       </ul>
@@ -453,28 +392,23 @@ function Mailings() {
               onChange={(e) => setSubject(e.target.value)}
               className={field}
             />
-            <div className="relative">
-              <select
-                value={audience}
-                onChange={(e) => setAudience(e.target.value)}
-                className={field + ' appearance-none'}
-                style={{ colorScheme: 'dark' }}
-              >
-                {['Alle klanten', 'B2B-partners', 'Nieuwsbrief'].map((a) => (
-                  <option key={a} value={a} style={{ backgroundColor: '#14191E' }}>
-                    {a}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={audience}
+              onChange={(e) => setAudience(e.target.value)}
+              aria-label="Doelgroep"
+              className={field + ' appearance-none'}
+              style={{ colorScheme: 'dark' }}
+            >
+              {['Alle klanten', 'B2B-partners', 'Nieuwsbrief'].map((a) => (
+                <option key={a} value={a} style={{ backgroundColor: '#14191E' }}>
+                  {a}
+                </option>
+              ))}
+            </select>
           </div>
           <textarea
             rows={5}
-            placeholder={
-              hasBackend
-                ? 'Schrijf je bericht… wordt via Resend verstuurd aan de gekozen doelgroep.'
-                : 'Schrijf je bericht… (zonder gekoppelde backend wordt de mailing alleen gelogd)'
-            }
+            placeholder="Schrijf je bericht… wordt via Resend verstuurd aan de gekozen doelgroep."
             value={body}
             onChange={(e) => setBody(e.target.value)}
             className={field + ' resize-none'}
@@ -487,7 +421,7 @@ function Mailings() {
               (sent ? 'bg-ok' : 'bg-rust hover:bg-rust-deep')
             }
           >
-            <Send size={14} strokeWidth={2} /> {sent ? 'In wachtrij gezet' : 'Verstuur mailing'}
+            <Send size={14} strokeWidth={2} /> {sent ? 'Verstuurd' : 'Verstuur mailing'}
           </button>
         </div>
       </Card>
@@ -581,11 +515,17 @@ export function Admin({ onExit }: { onExit: () => void }) {
   const [authed, setAuthed] = useState(isAdminAuthed)
   const [section, setSection] = useState<SectionId>('dashboard')
   const [orders, setOrders] = useState(getOrders)
+  const [offerDraft, setOfferDraft] = useState<OfferDraft | null>(null)
   const title = useMemo(() => SECTIONS.find(([id]) => id === section)![1], [section])
 
   useEffect(() => {
     if (authed) void fetchOrders().then(setOrders)
   }, [authed])
+
+  const startOffer = (draft: OfferDraft) => {
+    setOfferDraft(draft)
+    setSection('offertes')
+  }
 
   if (!authed) return <Login onAuthed={() => setAuthed(true)} />
 
@@ -639,9 +579,15 @@ export function Admin({ onExit }: { onExit: () => void }) {
           </h1>
           {section === 'dashboard' && <Dashboard orders={orders} />}
           {section === 'orders' && <Orders orders={orders} setOrders={setOrders} />}
-          {section === 'offertes' && <Quotes />}
-          {section === 'producten' && <Products />}
+          {section === 'offertes' && (
+            <OffersAdmin draft={offerDraft} onDraftUsed={() => setOfferDraft(null)} />
+          )}
+          {section === 'calculatie' && (
+            <CalculationAdmin onOffer={(line) => startOffer({ lines: [line] })} />
+          )}
+          {section === 'producten' && <ProductsAdmin />}
           {section === 'collecties' && <Collections />}
+          {section === 'klanten' && <CustomersAdmin orders={orders} onOffer={startOffer} />}
           {section === 'configurator' && <ConfiguratorSettings />}
           {section === 'b2b' && <Partners />}
           {section === 'mailings' && <Mailings />}
