@@ -16,18 +16,18 @@ const FOOTER_COLS: FooterCol[] = [
     links: [
       ['Ons verhaal', '/verhaal'],
       ['Zakelijk portal (B2B)', '/zakelijk'],
-      ['Contact', '#'],
-      ['Werken bij Cortemo', '#'],
+      ['Contact', 'mailto:hallo@cortemo.nl'],
+      ['Werken bij Cortemo', 'mailto:hallo@cortemo.nl?subject=Werken%20bij%20Cortemo'],
       ['Beheer', '/beheer'],
     ],
   },
   {
     title: 'Service',
     links: [
-      ['Algemene voorwaarden', '#'],
-      ['Privacyverklaring', '#'],
-      ['Levering & retour', '#'],
-      ['Veelgestelde vragen', '#'],
+      ['Veelgestelde vragen', '/service#faq'],
+      ['Levering & retour', '/service#levering'],
+      ['Algemene voorwaarden', '/service#voorwaarden'],
+      ['Privacyverklaring', '/service#privacy'],
     ],
   },
 ]

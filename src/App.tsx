@@ -11,13 +11,14 @@ import { B2BDashboard } from './views/B2BDashboard'
 import { Configurator } from './views/Configurator'
 import { Checkout } from './views/Checkout'
 import { Story } from './views/Story'
+import { Service } from './views/Service'
 import { Admin } from './views/Admin'
 import { GROUPS, hydrateCatalog, PRODUCTS, type GroupId } from './data/catalog'
 import { ACCELERATOR, cartCount, type CartItem } from './lib/cart'
 import { fetchDbProducts, fetchPricing } from './lib/adminStore'
 import { useTheme } from './lib/useTheme'
 
-type Page = 'inspiratie' | 'b2b' | 'maatwerk' | 'checkout' | 'verhaal' | 'admin'
+type Page = 'inspiratie' | 'b2b' | 'maatwerk' | 'checkout' | 'verhaal' | 'service' | 'admin'
 type View = 'root' | 'list' | 'pdp' | Page
 
 type NavState = {
@@ -28,7 +29,7 @@ type NavState = {
   sub: string | null
 }
 
-const PAGES: Page[] = ['inspiratie', 'b2b', 'maatwerk', 'checkout', 'verhaal', 'admin']
+const PAGES: Page[] = ['inspiratie', 'b2b', 'maatwerk', 'checkout', 'verhaal', 'service', 'admin']
 
 /** Nette, SEO-vriendelijke paden per pagina (met SPA-rewrite op de host). */
 const PAGE_PATHS: Record<Page, string> = {
@@ -37,6 +38,7 @@ const PAGE_PATHS: Record<Page, string> = {
   maatwerk: '/maatwerk',
   checkout: '/afrekenen',
   verhaal: '/verhaal',
+  service: '/service',
   admin: '/beheer',
 }
 
@@ -94,6 +96,7 @@ function applySeo(s: NavState) {
     maatwerk: '3D Maatwerk Configurator — Cortemo',
     checkout: 'Afrekenen — Cortemo',
     verhaal: 'Ons verhaal: liefhebbers van staal — Cortemo',
+    service: 'Service, levering & voorwaarden — Cortemo',
     admin: 'Beheer — Cortemo',
   }
   const descriptions: Partial<Record<View, string>> = {
@@ -103,6 +106,8 @@ function applySeo(s: NavState) {
     inspiratie: 'Echte tuinen, terrassen en daktuinen met Cortemo cortenstaal. Shop de look of bouw hem na in de configurator.',
     verhaal: 'Roots in Drenthe, jarenlange ervaring in de staalindustrie. Metaalbewerking, lasersnijden, lassen en kanten: alles kunnen we maken.',
     maatwerk: 'Stel je cortenstalen product samen tot op de millimeter en zie direct wat het kost.',
+    service:
+      'Veelgestelde vragen, levertijden, retourneren en de kern van onze voorwaarden en privacyverklaring.',
   }
   document.title = titles[s.view]
   const setMeta = (name: string, content: string | null) => {
@@ -204,12 +209,19 @@ export function App() {
   }, [])
 
   // Oude ?page=/?cat=/?product=-links stilletjes omzetten naar het nette pad
-  // (cfg-param van de configurator blijft behouden).
+  // (cfg-param van de configurator blijft behouden), en onbekende paden
+  // canonicaliseren zodat er geen soft-404's onder een eigen URL bestaan.
   useEffect(() => {
     const qs = new URLSearchParams(location.search)
+    const canonical = urlFor(stateFromLocation())
     if (qs.has('page') || qs.has('cat') || qs.has('product')) {
       const cfg = qs.get('cfg')
-      history.replaceState(null, '', urlFor(stateFromLocation()) + (cfg ? '?cfg=' + cfg : ''))
+      history.replaceState(null, '', canonical + (cfg ? '?cfg=' + cfg : ''))
+      return
+    }
+    const path = location.pathname.replace(/\/+$/, '') || '/'
+    if (path !== canonical) {
+      history.replaceState(null, '', canonical + location.search + location.hash)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -341,6 +353,7 @@ export function App() {
           <Checkout items={items} onClear={() => setItems([])} onShop={() => openPage('root')} />
         )}
         {nav.view === 'verhaal' && <Story onConfigurator={() => openPage('maatwerk')} />}
+        {nav.view === 'service' && <Service />}
         {nav.view === 'admin' && <Admin onExit={() => openPage('root')} />}
         <CartDrawer
           open={cartOpen}
