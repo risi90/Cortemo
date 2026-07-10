@@ -12,6 +12,8 @@ export type Product = {
   sub: string
   name: string
   dims: string
+  /** Productfoto (dummy CC-beeld tot er echte renders zijn). */
+  img: string
   price: number
   desc: string
   /** [label, meerprijs] */
@@ -38,11 +40,12 @@ export const SUBCATS: Record<GroupId, string[]> = {
   deco: ['Naamborden', 'Brievenbussen', 'Figuren', 'Wandkunst'],
 }
 
-/** Dummy renders uit de bundle. Decoratie & Praktisch heeft nog geen beeld. */
+/** Dummy sfeerbeelden per groep (renders + CC-foto's als placeholder). */
 export const GROUP_IMG: Partial<Record<GroupId, string>> = {
   planten: '/img/plantenbak.webp',
   hoogte: '/img/maatwerk.webp',
   vuurwater: '/img/vuurschaal.webp',
+  deco: '/img/deco.jpg',
 }
 
 export const PRODUCTS: Product[] = [
@@ -52,6 +55,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Plantenbakken',
     name: 'Plantenbak Cubo',
     dims: '60 × 60 × 60 cm',
+    img: '/img/cubo.jpg',
     price: 189,
     desc: 'Compacte kubusbak voor terras of entree. Naadloos gelast uit 3 mm cortenstaal, standaard bodemloos zodat beplanting in de volle grond kan wortelen.',
     variants: [
@@ -71,6 +75,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Plantenbakken',
     name: 'Plantenbak Linea',
     dims: '120 × 40 × 50 cm',
+    img: '/img/linea.jpg',
     price: 249,
     desc: 'Langwerpige bak als groene afscheiding op balkon of dakterras. Strakke, dunne rand en verdekte hoeknaden.',
     variants: [
@@ -89,6 +94,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Plantenbakken',
     name: 'Plantenbak Grande',
     dims: '200 × 60 × 60 cm',
+    img: '/img/grande.jpg',
     price: 389,
     desc: 'Royale bak voor meerstammige heesters en kleine bomen. Inwendig verstevigd, blijft strak bij volle grondvulling.',
     variants: [
@@ -107,6 +113,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Moestuinbakken',
     name: 'Moestuinbak Verde',
     dims: '150 × 80 × 50 cm',
+    img: '/img/verde.jpg',
     price: 329,
     desc: 'Verhoogde kweekbak op werkhoogte. Het staal houdt in het voorjaar warmte vast, wat de wortels ten goede komt.',
     variants: [
@@ -125,6 +132,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Boomringen',
     name: 'Boomring Anello',
     dims: 'Ø 80 cm',
+    img: '/img/anello.jpg',
     price: 95,
     desc: 'Tweedelige ring die om een bestaande stam sluit. Beschermt de wortels en geeft het gazon een strakke beëindiging.',
     variants: [
@@ -140,6 +148,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Sokkels',
     name: 'Sokkel Piede',
     dims: '40 × 40 × 80 cm',
+    img: '/img/piede.jpg',
     price: 159,
     desc: 'Zet een waterschaal, plant of kunstwerk op een voetstuk. Verzwaarde voet, ook geschikt voor winderige plekken.',
     variants: [
@@ -154,6 +163,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Keerwanden',
     name: 'Keerwand Terra',
     dims: '200 × 60 cm',
+    img: '/img/terra.jpg',
     price: 189,
     desc: 'Zelfdragende keerwand met gevouwen grondkeringsvoet. Creëert veilige hoogteverschillen zonder metselwerk.',
     variants: [
@@ -172,6 +182,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Borderranden',
     name: 'Borderrand Lijn',
     dims: '220 × 15 cm, set van 2',
+    img: '/img/lijn.jpg',
     price: 79,
     desc: 'Kantopsluiting die gazon, grind en borders strak scheidt. Koppelbaar met verdekte verbindingsstrip.',
     variants: [
@@ -189,6 +200,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Vijverranden',
     name: 'Vijverrand Aqua',
     dims: '200 × 30 cm',
+    img: '/img/aqua.jpg',
     price: 119,
     desc: 'Strakke, roestige omlijsting direct aan de waterkant. Gezette bovenrand, veilig voor vijverfolie.',
     variants: [
@@ -203,6 +215,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Schuttingen',
     name: 'Schutting Vista',
     dims: '180 × 180 cm',
+    img: '/img/vista.jpg',
     price: 549,
     desc: 'Privacypaneel met verborgen staanders. Optioneel met organisch laserpatroon voor een licht, ruimtelijk effect.',
     variants: [
@@ -220,6 +233,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Vuurschalen',
     name: 'Vuurschaal Fuoco',
     dims: 'Ø 80 cm',
+    img: '/img/fuoco.jpg',
     price: 279,
     desc: 'Hittebestendig 5 mm staal dat niet kromtrekt. Sokkel houdt de gloed op zithoogte, ook als kookplateau te gebruiken.',
     variants: [
@@ -238,6 +252,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Houtopslag',
     name: 'Houtopslag Legna',
     dims: '180 × 40 × 160 cm',
+    img: '/img/legna.jpg',
     price: 649,
     desc: 'Geometrische vakkenkast voor haardhout die tegelijk dient als windscherm of afscheiding van de loungehoek.',
     variants: [
@@ -252,6 +267,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Waterelementen',
     name: 'Watertafel Fonte',
     dims: '100 × 100 × 40 cm',
+    img: '/img/fonte.jpg',
     price: 899,
     desc: 'Spiegelend wateroppervlak in een roestig kader. Inclusief circulatiepomp en verdekte overloop.',
     variants: [
@@ -266,6 +282,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Naamborden',
     name: 'Naambord Numero',
     dims: '40 × 20 cm',
+    img: '/img/numero.jpg',
     price: 69,
     desc: 'Huisnummer of naam, lasergesneden uit één plaat. Zwevend gemonteerd met RVS afstandhouders.',
     variants: [
@@ -283,6 +300,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Brievenbussen',
     name: 'Brievenbus Posta',
     dims: '38 × 30 × 120 cm',
+    img: '/img/posta.jpg',
     price: 429,
     desc: 'Vrijstaande zuil voor aan de straatkant. RVS binnenbak, slot met twee sleutels en pakketvriendelijke klep.',
     variants: [
@@ -300,6 +318,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Wandkunst',
     name: 'Wandpaneel Silva',
     dims: '80 × 80 cm',
+    img: '/img/silva.jpg',
     price: 189,
     desc: 'Lasergesneden boomsilhouet voor tuinmuur of interieur. Werpt bij strijklicht een tekening op de wand.',
     variants: [
@@ -314,6 +333,7 @@ export const PRODUCTS: Product[] = [
     sub: 'Figuren',
     name: 'Figuur Den',
     dims: '120 cm hoog',
+    img: '/img/den.jpg',
     price: 89,
     desc: 'Silhouet voor in de border. Met grondpennen stevig verankerd, wintervast en onderhoudsvrij.',
     variants: [

@@ -11,16 +11,43 @@ import { constants } from 'node:fs'
 const SOURCES = [
   'https://raw.githubusercontent.com/risi90/cortemo/main/public/img',
 ]
-const NAMES = ['plantenbak', 'maatwerk', 'vuurschaal']
+const FILES = [
+  'plantenbak.webp',
+  'maatwerk.webp',
+  'vuurschaal.webp',
+  // dummy productfoto's (CC) tot er echte renders zijn
+  'cubo.jpg',
+  'linea.jpg',
+  'grande.jpg',
+  'verde.jpg',
+  'anello.jpg',
+  'piede.jpg',
+  'terra.jpg',
+  'lijn.jpg',
+  'aqua.jpg',
+  'vista.jpg',
+  'fuoco.jpg',
+  'legna.jpg',
+  'fonte.jpg',
+  'numero.jpg',
+  'posta.jpg',
+  'silva.jpg',
+  'den.jpg',
+  'deco.jpg',
+  'insp-brasserie.jpg',
+  'insp-daktuin.jpg',
+  'insp-voortuin.jpg',
+  'insp-patio.jpg',
+]
 const DIR = new URL('../public/img/', import.meta.url)
 
 await mkdir(DIR, { recursive: true })
 
-for (const name of NAMES) {
-  const target = new URL(`${name}.webp`, DIR)
+for (const file of FILES) {
+  const target = new URL(file, DIR)
   try {
     await access(target, constants.F_OK)
-    console.log(`fetch-assets: ${name}.webp aanwezig, overslaan`)
+    console.log(`fetch-assets: ${file} aanwezig, overslaan`)
     continue
   } catch {
     /* niet aanwezig: downloaden */
@@ -28,10 +55,10 @@ for (const name of NAMES) {
   let done = false
   for (const base of SOURCES) {
     try {
-      const res = await fetch(`${base}/${name}.webp`)
+      const res = await fetch(`${base}/${file}`)
       if (!res.ok) continue
       await writeFile(target, Buffer.from(await res.arrayBuffer()))
-      console.log(`fetch-assets: ${name}.webp opgehaald van ${new URL(base).host}`)
+      console.log(`fetch-assets: ${file} opgehaald van ${new URL(base).host}`)
       done = true
       break
     } catch {
@@ -39,7 +66,7 @@ for (const name of NAMES) {
     }
   }
   if (!done) {
-    console.error(`fetch-assets: ${name}.webp niet gevonden bij enige bron`)
+    console.error(`fetch-assets: ${file} niet gevonden bij enige bron`)
     process.exitCode = 1
   }
 }

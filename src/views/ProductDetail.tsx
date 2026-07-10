@@ -38,6 +38,7 @@ export function ProductDetail({
       name: p.name,
       sub: p.sub,
       group: p.group,
+      img: p.img,
       config: [p.variants[variant][0] + ' · 3 mm corten', ...selected],
       unitPrice: total,
       // Ruwe schatting op basis van de prijs; volstaat voor de logistiek-indicatie.
@@ -61,7 +62,7 @@ export function ProductDetail({
         {/* foto */}
         <div className="min-w-0 flex-1">
           <div className="h-[300px] sm:h-[420px] lg:h-[520px]">
-            <ProductImage src={GROUP_IMG[p.group]} label={p.name} radius={20} />
+            <ProductImage src={p.img || GROUP_IMG[p.group]} label={p.name} radius={20} />
           </div>
         </div>
 

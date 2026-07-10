@@ -114,7 +114,7 @@ export function CartDrawer({
                 <div key={item.key} className="flex gap-3">
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-white/5">
                     <ProductImage
-                      src={item.group ? GROUP_IMG[item.group] : undefined}
+                      src={item.img || (item.group ? GROUP_IMG[item.group] : undefined)}
                       label={item.name}
                       radius={0}
                     />

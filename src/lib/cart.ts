@@ -7,6 +7,8 @@ export type CartItem = {
   name: string
   sub: string
   group?: GroupId
+  /** Thumbnail voor in de winkelwagen. */
+  img?: string
   /** Regels met de gekozen configuratie (afmeting, opties). */
   config: string[]
   /** Stukprijs incl. btw, inclusief variant- en optiemeerprijzen. */
