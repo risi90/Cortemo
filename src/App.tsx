@@ -10,11 +10,13 @@ import { Inspiration } from './views/Inspiration'
 import { B2BDashboard } from './views/B2BDashboard'
 import { Configurator } from './views/Configurator'
 import { Checkout } from './views/Checkout'
+import { Story } from './views/Story'
+import { Admin } from './views/Admin'
 import { GROUPS, PRODUCTS, type GroupId } from './data/catalog'
 import { ACCELERATOR, cartCount, type CartItem } from './lib/cart'
 import { useTheme } from './lib/useTheme'
 
-type Page = 'inspiratie' | 'b2b' | 'maatwerk' | 'checkout'
+type Page = 'inspiratie' | 'b2b' | 'maatwerk' | 'checkout' | 'verhaal' | 'admin'
 type View = 'root' | 'list' | 'pdp' | Page
 
 type NavState = {
@@ -25,7 +27,7 @@ type NavState = {
   sub: string | null
 }
 
-const PAGES: Page[] = ['inspiratie', 'b2b', 'maatwerk', 'checkout']
+const PAGES: Page[] = ['inspiratie', 'b2b', 'maatwerk', 'checkout', 'verhaal', 'admin']
 
 function stateFromLocation(): NavState {
   const qs = new URLSearchParams(location.search)
@@ -73,6 +75,7 @@ function Header({
   onHome,
   onInspiration,
   onB2B,
+  onStory,
   onConfigurator,
   onOpenCart,
 }: {
@@ -83,6 +86,7 @@ function Header({
   onHome: () => void
   onInspiration: () => void
   onB2B: () => void
+  onStory: () => void
   onConfigurator: () => void
   onOpenCart: () => void
 }) {
@@ -95,6 +99,7 @@ function Header({
         onHome={onHome}
         onInspiration={onInspiration}
         onB2B={onB2B}
+        onStory={onStory}
         onConfigurator={onConfigurator}
       />
       <button
@@ -174,7 +179,9 @@ export function App() {
         ? 'Zakelijk'
         : nav.view === 'maatwerk'
           ? 'Configurator'
-          : 'Assortiment'
+          : nav.view === 'verhaal'
+            ? 'Ons verhaal'
+            : 'Assortiment'
 
   return (
     <div className="min-h-screen bg-white p-3 sm:p-4 md:p-6">
@@ -187,6 +194,7 @@ export function App() {
           onHome={() => openPage('root')}
           onInspiration={() => openPage('inspiratie')}
           onB2B={() => openPage('b2b')}
+          onStory={() => openPage('verhaal')}
           onConfigurator={() => openPage('maatwerk')}
           onOpenCart={() => setCartOpen(true)}
         />
@@ -217,6 +225,8 @@ export function App() {
         {nav.view === 'checkout' && (
           <Checkout items={items} onClear={() => setItems([])} onShop={() => openPage('root')} />
         )}
+        {nav.view === 'verhaal' && <Story onConfigurator={() => openPage('maatwerk')} />}
+        {nav.view === 'admin' && <Admin onExit={() => openPage('root')} />}
         <CartDrawer
           open={cartOpen}
           items={items}

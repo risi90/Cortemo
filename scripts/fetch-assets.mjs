@@ -38,10 +38,15 @@ const FILES = [
   'insp-daktuin.jpg',
   'insp-voortuin.jpg',
   'insp-patio.jpg',
+  // gescande corten PBR-maps voor de 3D-configurator (ambientCG, CC0)
+  'textures/corten-color.jpg',
+  'textures/corten-normal.jpg',
+  'textures/corten-roughness.jpg',
 ]
 const DIR = new URL('../public/img/', import.meta.url)
 
 await mkdir(DIR, { recursive: true })
+await mkdir(new URL('textures/', DIR), { recursive: true })
 
 for (const file of FILES) {
   const target = new URL(file, DIR)

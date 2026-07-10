@@ -15,6 +15,8 @@ export type CortemoNavProps = {
   onInspiration?: () => void
   /** Callback for the "Zakelijk" link (B2B portal). */
   onB2B?: () => void
+  /** Callback for the "Ons verhaal" link. */
+  onStory?: () => void
   /** Callback for the configurator call-to-action. */
   onConfigurator?: () => void
 }
@@ -39,6 +41,7 @@ export function CortemoNav({
   onHome,
   onInspiration,
   onB2B,
+  onStory,
   onConfigurator,
 }: CortemoNavProps) {
   const [open, setOpen] = useState(false)
@@ -47,7 +50,7 @@ export function CortemoNav({
     { label: 'Assortiment', href: '#', onClick: onHome },
     { label: 'Inspiratie', href: '#', onClick: onInspiration },
     { label: 'Zakelijk', href: '?page=b2b', onClick: onB2B },
-    { label: 'Ons verhaal', href: '#' },
+    { label: 'Ons verhaal', href: '?page=verhaal', onClick: onStory },
   ]
 
   const follow = (l: NavLink) => (e: React.MouseEvent) => {

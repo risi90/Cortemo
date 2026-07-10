@@ -22,9 +22,17 @@ tarieven aanpassen of een producttype toevoegen gebeurt dáár, niet in de
 3D-code. Prijsberekening in `src/lib/pricing.ts` (puur), state in
 `src/store/configuratorStore.ts` (zustand), 3D in
 `src/components/Configurator3D/` (react-three-fiber, lazy geladen zodat de
-webshop-bundle klein blijft). Het cortenmateriaal is procedureel
-(`cortenMaterial.ts`), zonder externe texture-assets. Configuraties worden
+webshop-bundle klein blijft). Het cortenmateriaal combineert een
+procedurele basis met gescande PBR-maps (`public/img/textures/`, CC0 van
+ambientCG) voor kleur, normal en roughness. Configuraties worden
 geserialiseerd in het `cfg` URL-param (deelbaar/hervatbaar).
+
+Admin (`?page=admin`, ook via footerlink "Beheer"): `src/views/Admin.tsx`
+met datalaag in `src/lib/adminStore.ts`. Alles draait nu op localStorage
+(demo); elke functie is zo opgezet dat hij later door een API-call
+vervangen wordt. Tarieven die de beheerder daar opslaat overschrijven de
+schema-defaults live via `getPricing()`. Orders komen uit de checkout,
+offertes uit het maatwerkformulier.
 Navigatie is state-based in `src/App.tsx` (met URL-params `cat`, `product`,
 `page`). Thema (donker standaard, licht via toggle) wordt gescoped op
 `.page-shell`/`.cortemo-footer` in `src/index.css`; nieuwe UI moet in beide

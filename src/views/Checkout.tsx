@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowRight, Check, Lock, ShoppingCart, Truck } from 'lucide-react'
 import { euro } from '../data/catalog'
 import { cartTotal, cartWeight, VAT_RATE, type CartItem } from '../lib/cart'
+import { saveOrder } from '../lib/adminStore'
 
 const PAYMENT_METHODS = ['iDEAL', 'Bancontact', 'Creditcard', 'Bankoverschrijving']
 
@@ -35,7 +36,18 @@ export function Checkout({
   const place = () => {
     setTried(true)
     if (!valid) return
-    setPlaced('CM-' + String(Date.now()).slice(-6))
+    const id = 'CM-' + String(Date.now()).slice(-6)
+    saveOrder({
+      id,
+      date: new Date().toISOString(),
+      name: form.name,
+      email: form.email,
+      city: form.city,
+      items: items.map(({ name, qty, unitPrice, config }) => ({ name, qty, unitPrice, config })),
+      total,
+      status: 'nieuw',
+    })
+    setPlaced(id)
     onClear()
   }
 

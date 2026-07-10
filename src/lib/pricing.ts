@@ -1,9 +1,9 @@
 import {
   configType,
-  PRICING,
   type ConfigTypeId,
   type DimensionKey,
 } from '../data/configuratorSchema'
+import { getPricing } from './adminStore'
 
 export type ConfigState = {
   typeId: ConfigTypeId
@@ -60,6 +60,8 @@ function geometryFor(state: ConfigState): { areaM2: number; weldM: number } {
 }
 
 export function calcPrice(state: ConfigState): PriceBreakdown {
+  // tarieven komen uit het schema, met eventuele admin-overrides eroverheen
+  const PRICING = getPricing()
   const type = configType(state.typeId)
   const { areaM2, weldM } = geometryFor(state)
   const t = state.thickness * M

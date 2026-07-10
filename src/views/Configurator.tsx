@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { ArrowRight, Check, ChevronDown, FileUp, Loader2, Ruler, ShieldCheck, Truck } from 'lucide-react'
 import type { CartItem } from '../lib/cart'
+import { saveQuote } from '../lib/adminStore'
 
 // De 3D-configurator (three.js) wordt lazy geladen zodat de webshop zelf
 // geen zware bundle meesleept; deze chunk laadt pas op de maatwerkpagina.
@@ -84,7 +85,18 @@ function QuoteForm({ onShop }: { onShop: () => void }) {
 
   const submit = () => {
     setTried(true)
-    if (valid) setSent(true)
+    if (!valid) return
+    saveQuote({
+      id: 'OF-' + String(Date.now()).slice(-6),
+      date: new Date().toISOString(),
+      type: form.type,
+      dims: [form.l, form.b, form.h].filter(Boolean).join(' × ') + (form.l || form.b || form.h ? ' mm' : ''),
+      name: form.name,
+      email: form.email,
+      note: [form.note, form.file && 'DXF: ' + form.file].filter(Boolean).join(' · '),
+      handled: false,
+    })
+    setSent(true)
   }
 
   if (sent) {
@@ -230,7 +242,7 @@ export function Configurator({
   onAdd: (item: Omit<CartItem, 'qty'>) => void
 }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pb-20 sm:pt-10">
+    <div className="mx-auto max-w-6xl px-4 pb-32 pt-8 sm:px-6 sm:pt-10 lg:pb-20">
       <p className="text-[12px] font-semibold uppercase tracking-[.2em] text-rust">
         3D Maatwerk Configurator
       </p>

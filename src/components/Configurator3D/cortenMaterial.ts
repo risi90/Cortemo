@@ -32,6 +32,14 @@ function mulberry32(seed: number) {
   }
 }
 
+/**
+ * Gescande corten-kleurmap (ambientCG Rust004, CC0). Zodra die geladen is,
+ * wordt hij in het roeststadium gemengd over de procedurele basis: de
+ * procedurele laag verzorgt de walshuid en beginroest, de scan de volledig
+ * verweerde plaat.
+ */
+let scanImage: HTMLImageElement | null = null
+
 function paintRust(ctx: CanvasRenderingContext2D, size: number, rust: number) {
   const rand = mulberry32(1337)
 
@@ -43,6 +51,19 @@ function paintRust(ctx: CanvasRenderingContext2D, size: number, rust: number) {
   grad.addColorStop(1, baseB)
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, size, size)
+
+  // echte gescande roestlaag, in kracht oplopend met het roeststadium
+  let scanAlpha = 0
+  if (scanImage) {
+    scanAlpha = Math.min(1, Math.max(0, (rust - 0.08) / 0.55))
+    if (scanAlpha > 0) {
+      ctx.globalAlpha = scanAlpha
+      ctx.drawImage(scanImage, 0, 0, size, size)
+      ctx.globalAlpha = 1
+    }
+  }
+  // procedurele vlekken vullen aan waar de scan (nog) niet dekt
+  const procedural = 1 - 0.75 * scanAlpha
 
   const palette = rust < 0.5 ? EARLY_RUST : FULL_RUST
   const blob = (x: number, y: number, r: number, color: string, alpha: number) => {
@@ -65,7 +86,7 @@ function paintRust(ctx: CanvasRenderingContext2D, size: number, rust: number) {
       rand() * size,
       (0.1 + rand() * 0.18) * size,
       palette[Math.floor(rand() * palette.length)],
-      (0.08 + rand() * 0.14) * coverage,
+      (0.08 + rand() * 0.14) * coverage * procedural,
     )
   }
   for (let i = 0; i < 220; i++) {
@@ -75,7 +96,7 @@ function paintRust(ctx: CanvasRenderingContext2D, size: number, rust: number) {
       rand() * size,
       (0.015 + rand() * 0.05) * size,
       palette[Math.floor(rand() * palette.length)],
-      (0.12 + rand() * 0.26) * coverage,
+      (0.12 + rand() * 0.26) * coverage * procedural,
     )
   }
   for (let i = 0; i < 900; i++) {
@@ -85,7 +106,7 @@ function paintRust(ctx: CanvasRenderingContext2D, size: number, rust: number) {
       rand() * size,
       (0.003 + rand() * 0.014) * size,
       palette[Math.floor(rand() * palette.length)],
-      0.18 + rand() * 0.3,
+      (0.18 + rand() * 0.3) * procedural,
     )
   }
   ctx.globalAlpha = 1
@@ -100,7 +121,7 @@ function paintRust(ctx: CanvasRenderingContext2D, size: number, rust: number) {
       ? lerpHex('#6a7078', '#a8642f', rust)
       : lerpHex('#3a4046', '#4f2d18', rust)
     ctx.fillStyle = tone
-    ctx.globalAlpha = 0.05 + rand() * 0.14
+    ctx.globalAlpha = (0.05 + rand() * 0.14) * (1 - 0.5 * scanAlpha)
     const s = 0.6 + rand() * 1.8
     ctx.fillRect(x, y, s, s)
   }
@@ -199,9 +220,54 @@ function holeTexture(): THREE.CanvasTexture {
 
 let sharedMaterial: THREE.MeshStandardMaterial | null = null
 let sharedLaser: THREE.MeshStandardMaterial | null = null
+let lastRust = 0.85
+let scansRequested = false
+let scanNormal: THREE.Texture | null = null
+let scanRoughness: THREE.Texture | null = null
+
+/**
+ * Laadt de gescande PBR-maps (kleur, normal, roughness) asynchroon. Tot ze
+ * binnen zijn rendert de puur procedurele versie; daarna worden de kleur-
+ * composieten opnieuw opgebouwd en krijgt het oppervlak echt reliëf.
+ */
+function requestScans() {
+  if (scansRequested || typeof document === 'undefined') return
+  scansRequested = true
+  const img = new Image()
+  img.src = '/img/textures/corten-color.jpg'
+  img.onload = () => {
+    scanImage = img
+    textureCache.clear()
+    applyScans()
+  }
+  const loader = new THREE.TextureLoader()
+  loader.load('/img/textures/corten-normal.jpg', (t) => {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping
+    scanNormal = t
+    applyScans()
+  })
+  loader.load('/img/textures/corten-roughness.jpg', (t) => {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping
+    scanRoughness = t
+    applyScans()
+  })
+}
+
+function applyScans() {
+  for (const mat of [sharedMaterial, sharedLaser]) {
+    if (!mat) continue
+    if (scanNormal) {
+      mat.normalMap = scanNormal
+      mat.normalScale.set(0.7, 0.7)
+    }
+    if (scanRoughness) mat.roughnessMap = scanRoughness
+  }
+  updateCorten(lastRust)
+}
 
 /** Eén gedeeld materiaal; `updateCorten` muteert het bij een slider-wijziging. */
 export function cortenMaterial(rust: number): THREE.MeshStandardMaterial {
+  requestScans()
   if (!sharedMaterial) {
     sharedMaterial = new THREE.MeshStandardMaterial({
       map: rustTexture(rust),
@@ -210,6 +276,7 @@ export function cortenMaterial(rust: number): THREE.MeshStandardMaterial {
       roughness: 1,
       metalness: 0,
     })
+    applyScans()
   }
   updateCorten(rust)
   return sharedMaterial
@@ -217,6 +284,7 @@ export function cortenMaterial(rust: number): THREE.MeshStandardMaterial {
 
 /** Variant met organisch gatenpatroon (schutting-laseroptie). */
 export function cortenLaserMaterial(rust: number): THREE.MeshStandardMaterial {
+  requestScans()
   if (!sharedLaser) {
     sharedLaser = new THREE.MeshStandardMaterial({
       map: rustTexture(rust),
@@ -228,14 +296,17 @@ export function cortenLaserMaterial(rust: number): THREE.MeshStandardMaterial {
       roughness: 1,
       metalness: 0,
     })
+    applyScans()
   }
   updateCorten(rust)
   return sharedLaser
 }
 
 export function updateCorten(rust: number): void {
-  // vers staal is licht spiegelend; de oxidelaag is dof en poreus
-  const roughness = 0.45 + rust * 0.5
+  lastRust = rust
+  // vers staal is licht spiegelend; de oxidelaag is dof en poreus. Met de
+  // gescande roughnessmap werkt de scalar als multiplier op de scan.
+  const roughness = scanRoughness ? 0.7 + rust * 0.35 : 0.45 + rust * 0.5
   const metalness = 0.55 - rust * 0.42
   for (const mat of [sharedMaterial, sharedLaser]) {
     if (!mat) continue

@@ -14,10 +14,11 @@ const FOOTER_COLS: FooterCol[] = [
   {
     title: 'Bedrijf',
     links: [
-      ['Ons verhaal', '#'],
+      ['Ons verhaal', '?page=verhaal'],
       ['Zakelijk portal (B2B)', '?page=b2b'],
       ['Contact', '#'],
       ['Werken bij Cortemo', '#'],
+      ['Beheer', '?page=admin'],
     ],
   },
   {

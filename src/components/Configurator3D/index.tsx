@@ -62,7 +62,7 @@ function ViewerButton({
       title={title}
       aria-label={title}
       className={
-        'flex h-9 min-w-9 items-center justify-center gap-1 rounded-lg px-2 text-[11px] font-semibold backdrop-blur-md transition-colors ' +
+        'flex h-10 min-w-10 items-center justify-center gap-1 rounded-lg px-2.5 text-[11px] font-semibold backdrop-blur-md transition-colors ' +
         (active ? 'bg-rust text-white' : 'bg-black/35 text-white/80 hover:bg-black/50')
       }
     >
@@ -431,6 +431,33 @@ export default function Configurator3D({
             configuratie.
           </p>
         </div>
+      </div>
+
+      {/* sticky prijsbalk op mobiel: prijs + CTA altijd binnen duimbereik */}
+      <div className="liquid-glass fixed inset-x-3 bottom-3 z-30 flex items-center justify-between gap-3 rounded-2xl p-3 pl-5 text-white lg:hidden">
+        <div>
+          <div className="text-[11px] text-white/55">{type.label} · incl. btw</div>
+          <div className="text-[18px] font-extrabold leading-tight tabular-nums">
+            {euro(price.total)}
+          </div>
+        </div>
+        <button
+          onClick={addToCart}
+          className={
+            'flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-5 py-3 text-[14px] font-semibold text-white transition-all ' +
+            (added ? 'bg-ok' : 'bg-rust hover:bg-rust-deep active:scale-[.99]')
+          }
+        >
+          {added ? (
+            <>
+              <Check size={15} strokeWidth={2} /> Toegevoegd
+            </>
+          ) : (
+            <>
+              <ShoppingCart size={15} strokeWidth={2} /> In winkelwagen
+            </>
+          )}
+        </button>
       </div>
     </div>
   )

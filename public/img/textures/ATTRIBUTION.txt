@@ -1,0 +1,2 @@
+Rust004 PBR-maps: ambientCG.com, CC0 (publiek domein).
+Gebruikt als basis voor het cortenstaal-materiaal in de 3D-configurator.
