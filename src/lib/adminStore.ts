@@ -479,22 +479,26 @@ export function deleteDiscount(code: string): Discount[] {
   return next
 }
 
-/** Valideert een code voor de checkout; RLS geeft anon alleen actieve codes. */
+/** Valideert een code voor de checkout; RLS geeft anon alleen actieve codes.
+ *  Met een timeout zodat een trage verbinding het afrekenen nooit blokkeert. */
 export async function validateDiscount(code: string): Promise<number | null> {
   const clean = code.trim().toUpperCase()
   if (!clean) return null
   try {
     if (supabase) {
-      const { data } = await supabase
+      const query = supabase
         .from('cortemo_discounts')
         .select('percent')
         .eq('code', clean)
         .maybeSingle()
+        .then((r) => r)
+      const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
+      const { data } = await Promise.race([query, timeout])
       if (data) return Number(data.percent)
       return null
     }
   } catch {
-    /* netwerkfout: probeer de lokale cache */
+    /* netwerkfout of timeout: probeer de lokale cache */
   }
   const local = getDiscounts().find(
     (d) => d.code === clean && d.active && (!d.expires || d.expires >= new Date().toISOString().slice(0, 10)),

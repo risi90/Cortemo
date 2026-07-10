@@ -83,6 +83,63 @@ const ORDER_STATUSES: OrderStatus[] = ['nieuw', 'in productie', 'verzonden', 'ge
 
 /* ---------- secties ---------- */
 
+/** Omzet per week (laatste 8 weken) als eenvoudige SVG-staafgrafiek. */
+function RevenueChart({ orders }: { orders: Order[] }) {
+  const weeks: { label: string; total: number }[] = []
+  const now = new Date()
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
+  monday.setHours(0, 0, 0, 0)
+  for (let i = 7; i >= 0; i--) {
+    const start = new Date(monday)
+    start.setDate(monday.getDate() - i * 7)
+    const end = new Date(start)
+    end.setDate(start.getDate() + 7)
+    const total = orders
+      .filter((o) => o.status !== 'geannuleerd')
+      .filter((o) => {
+        const d = new Date(o.date)
+        return d >= start && d < end
+      })
+      .reduce((s, o) => s + o.total, 0)
+    weeks.push({
+      label: start.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+      total,
+    })
+  }
+  const max = Math.max(...weeks.map((w) => w.total), 1)
+  const statuses: [OrderStatus, number][] = ORDER_STATUSES.map((status) => [
+    status,
+    orders.filter((o) => o.status === status).length,
+  ])
+
+  return (
+    <Card title="Omzet per week" aside={<span className="text-[12px] text-white/40">laatste 8 weken</span>}>
+      <div className="flex h-40 items-end gap-2" role="img" aria-label="Staafdiagram van de omzet per week">
+        {weeks.map((w) => (
+          <div key={w.label} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+            <span className="text-[10px] font-semibold tabular-nums text-white/55">
+              {w.total > 0 ? '€' + Math.round(w.total) : ''}
+            </span>
+            <div
+              className="w-full rounded-t-md bg-rust transition-all"
+              style={{ height: Math.max(w.total > 0 ? 6 : 2, (w.total / max) * 110) + 'px', opacity: w.total > 0 ? 1 : 0.15 }}
+            />
+            <span className="max-w-full truncate text-[10px] text-white/45">{w.label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2 border-t border-white/10 pt-3">
+        {statuses.map(([status, count]) => (
+          <span key={status} className="rounded-full bg-white/5 px-3 py-1.5 text-[12px] text-white/60">
+            {status}: <span className="font-bold tabular-nums text-white">{count}</span>
+          </span>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
 function Dashboard({ orders }: { orders: Order[] }) {
   const open = orders.filter((o) => o.status === 'nieuw' || o.status === 'in productie')
   const revenue = orders
@@ -97,6 +154,7 @@ function Dashboard({ orders }: { orders: Order[] }) {
         <Stat label="Open aanvragen" value={String(quotes.filter((q) => !q.handled).length)} />
         <Stat label="Producten" value={String(PRODUCTS.length)} />
       </div>
+      <RevenueChart orders={orders} />
       <Card title="Recente orders">
         {orders.length === 0 ? (
           <EmptyRow>Nog geen orders. Plaats er een via de webshop-checkout.</EmptyRow>
