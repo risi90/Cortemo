@@ -187,8 +187,31 @@ function Header({
   onConfigurator: () => void
   onOpenCart: () => void
 }) {
+  // Op mobiel duikt de zwevende navbar weg zodra je omlaag scrolt (hij
+  // zweeft anders over knoppen en invoervelden heen) en komt hij direct
+  // terug bij omhoog scrollen of bovenin de pagina. Desktop blijft vast.
+  const [hidden, setHidden] = useState(false)
+  useEffect(() => {
+    let lastY = window.scrollY
+    const onScroll = () => {
+      const y = window.scrollY
+      if (y < 120) setHidden(false)
+      else if (y > lastY + 4) setHidden(true)
+      else if (y < lastY - 4) setHidden(false)
+      lastY = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
   return (
-    <div className="sticky top-3 z-30 flex items-start justify-between gap-3 px-4 pt-4 sm:px-6 sm:pt-6 md:px-8 md:pt-8">
+    <div
+      className={
+        'sticky top-3 z-30 flex items-start justify-between gap-3 px-4 pt-4 transition-all duration-300 sm:px-6 sm:pt-6 md:px-8 md:pt-8 ' +
+        (hidden
+          ? 'pointer-events-none -translate-y-[130%] opacity-0 lg:pointer-events-auto lg:translate-y-0 lg:opacity-100'
+          : '')
+      }
+    >
       <CortemoNav
         active={active}
         theme={theme}

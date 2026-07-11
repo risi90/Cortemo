@@ -21,7 +21,8 @@ function DimLine({ from, to, label }: { from: Vec3; to: Vec3; label: string }) {
       {ticks.map((t, i) => (
         <Line key={i} points={t} color="#D95A2B" lineWidth={1.5} />
       ))}
-      <Html position={mid} center zIndexRange={[20, 0]}>
+      {/* on-media houdt de tekst wit in het lichte thema (donkere chip) */}
+      <Html position={mid} center zIndexRange={[20, 0]} wrapperClass="on-media">
         <span className="pointer-events-none select-none whitespace-nowrap rounded-md bg-[#101418]/85 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white shadow-sm">
           {label}
         </span>

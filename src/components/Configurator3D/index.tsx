@@ -297,8 +297,9 @@ export default function Configurator3D({
             </Canvas>
           </div>
 
-          {/* viewer-instellingen */}
-          <div className="absolute left-3 right-3 top-3 flex flex-wrap items-center justify-end gap-1.5 sm:left-auto">
+          {/* viewer-instellingen — on-media: witte tekst op de donkere chips,
+              ook in het lichte thema */}
+          <div className="on-media absolute left-3 right-3 top-3 flex flex-wrap items-center justify-end gap-1.5 sm:left-auto">
             {cameraPresets.map(([name, label]) => (
               <ViewerButton key={name} onClick={() => setCameraView(name)} title={'Camerastandpunt: ' + label}>
                 {name === 'detail' ? <Maximize2 size={13} strokeWidth={2} /> : null}
@@ -339,7 +340,7 @@ export default function Configurator3D({
             )}
           </div>
           {bgPhoto && (
-            <div className="pointer-events-none absolute left-4 top-3 rounded-lg bg-black/35 px-2.5 py-1.5 text-[11px] font-semibold text-white/80 backdrop-blur-md">
+            <div className="on-media pointer-events-none absolute left-4 top-3 rounded-lg bg-black/35 px-2.5 py-1.5 text-[11px] font-semibold text-white/80 backdrop-blur-md">
               Jouw tuin als achtergrond — foto blijft op je eigen apparaat
             </div>
           )}
@@ -349,7 +350,7 @@ export default function Configurator3D({
           </div>
 
           {/* roeststadium */}
-          <div className="absolute bottom-3 right-3 w-40 rounded-xl bg-black/35 px-2.5 py-2 backdrop-blur-md sm:w-44 sm:px-3">
+          <div className="on-media absolute bottom-3 right-3 w-40 rounded-xl bg-black/35 px-2.5 py-2 backdrop-blur-md sm:w-44 sm:px-3">
             <div className="flex items-center justify-between text-[10px] font-semibold text-white/70">
               <span>Roeststadium</span>
               <span>{rust < 0.15 ? 'nieuw' : rust < 0.6 ? '± 3 mnd' : '1 jaar+'}</span>
