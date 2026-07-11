@@ -246,18 +246,21 @@ export function Configurator({
       <p className="text-[12px] font-semibold uppercase tracking-[.2em] text-rust">
         3D Maatwerk Configurator
       </p>
-      <h1 className="serif mt-4 max-w-3xl text-[34px] leading-[1.0] tracking-[-.03em] text-white sm:text-[40px] md:text-[52px]">
+      <h1 className="serif mt-3 max-w-3xl text-[30px] leading-[1.0] tracking-[-.03em] text-white sm:mt-4 sm:text-[40px] md:text-[52px]">
         Jouw maat, <em className="text-white/50">ons staal.</em>
       </h1>
-      <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-white/60">
-        Stel je product samen tot op de millimeter en zie direct wat het kost. Draai, zoom in op
-        de naad en bekijk hoe het cortenstaal verkleurt van gewalst staal tot een diepe roestlaag.
+      <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-white/60 sm:mt-4 sm:text-[15px]">
+        Stel je product samen tot op de millimeter en zie direct wat het kost.{' '}
+        <span className="hidden sm:inline">
+          Draai, zoom in op de naad en bekijk hoe het cortenstaal verkleurt van gewalst staal tot
+          een diepe roestlaag.
+        </span>
       </p>
 
-      <div className="mt-8">
+      <div className="mt-5 sm:mt-8">
         <Suspense
           fallback={
-            <div className="liquid-glass flex h-[46vh] min-h-[320px] items-center justify-center rounded-2xl text-white/50 lg:h-[600px]">
+            <div className="liquid-glass flex h-[52vh] min-h-[340px] items-center justify-center rounded-2xl text-white/50 lg:h-[600px]">
               <Loader2 size={18} strokeWidth={2} className="mr-2 animate-spin" /> 3D-configurator
               laden…
             </div>

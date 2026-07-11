@@ -274,7 +274,9 @@ export default function Configurator3D({
       <div className="min-w-0 flex-1">
         <div className="liquid-glass relative overflow-hidden rounded-2xl lg:sticky lg:top-24">
           <div
-            className="h-[46vh] min-h-[320px] lg:h-[600px]"
+            className={
+              'h-[52vh] min-h-[340px] lg:h-[600px]' + (bgPhoto ? '' : ' viewer-grad')
+            }
             style={
               bgPhoto
                 ? {
@@ -296,7 +298,7 @@ export default function Configurator3D({
           </div>
 
           {/* viewer-instellingen */}
-          <div className="absolute right-3 top-3 flex items-center gap-1.5">
+          <div className="absolute left-3 right-3 top-3 flex flex-wrap items-center justify-end gap-1.5 sm:left-auto">
             {cameraPresets.map(([name, label]) => (
               <ViewerButton key={name} onClick={() => setCameraView(name)} title={'Camerastandpunt: ' + label}>
                 {name === 'detail' ? <Maximize2 size={13} strokeWidth={2} /> : null}
@@ -347,7 +349,7 @@ export default function Configurator3D({
           </div>
 
           {/* roeststadium */}
-          <div className="absolute bottom-3 right-3 w-44 rounded-xl bg-black/35 px-3 py-2 backdrop-blur-md">
+          <div className="absolute bottom-3 right-3 w-40 rounded-xl bg-black/35 px-2.5 py-2 backdrop-blur-md sm:w-44 sm:px-3">
             <div className="flex items-center justify-between text-[10px] font-semibold text-white/70">
               <span>Roeststadium</span>
               <span>{rust < 0.15 ? 'nieuw' : rust < 0.6 ? '± 3 mnd' : '1 jaar+'}</span>
@@ -368,7 +370,7 @@ export default function Configurator3D({
 
       {/* paneel */}
       <div className="w-full shrink-0 lg:w-[420px]">
-        <div className="liquid-glass flex flex-col gap-6 rounded-2xl p-6 text-white sm:p-7">
+        <div className="liquid-glass flex flex-col gap-5 rounded-2xl p-5 text-white sm:gap-6 sm:p-7">
           {/* producttype */}
           <Section title="Producttype" summary={type.label} defaultOpen>
             <div className="grid grid-cols-2 gap-2">
@@ -756,11 +758,13 @@ export default function Configurator3D({
           </div>
 
           <div className="flex gap-2">
+            {/* op mobiel zit "In winkelwagen" al in de vaste prijsbalk; hier
+                zou hij dubbelen, dus daar tonen we alleen delen/overleggen */}
             <button
               onClick={addToCart}
               disabled={validation.errors.length > 0}
               className={
-                'flex flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50 ' +
+                'hidden flex-1 items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50 lg:flex ' +
                 (added ? 'bg-ok' : 'bg-rust hover:bg-rust-deep active:scale-[.99]')
               }
             >
@@ -777,9 +781,12 @@ export default function Configurator3D({
             <button
               onClick={share}
               title="Kopieer een deelbare link naar dit ontwerp"
-              className="flex w-[52px] items-center justify-center rounded-xl bg-white/5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/5 py-3 text-white/70 transition-colors hover:bg-white/10 hover:text-white lg:w-[52px] lg:flex-none lg:py-0"
             >
               {copied ? <Check size={16} strokeWidth={2} className="text-ok" /> : <Link2 size={16} strokeWidth={2} />}
+              <span className="text-[13px] font-semibold lg:hidden">
+                {copied ? 'Gekopieerd' : 'Deel ontwerp'}
+              </span>
             </button>
             <a
               href={whatsappShare('Hoi Cortemo! Kunnen jullie meedenken met dit ontwerp? ' + (typeof location !== 'undefined' ? location.href : ''))}
@@ -787,9 +794,10 @@ export default function Configurator3D({
               rel="noreferrer"
               title="Bespreek dit ontwerp via WhatsApp"
               aria-label="Bespreek dit ontwerp via WhatsApp"
-              className="flex w-[52px] items-center justify-center rounded-xl bg-[#25D366]/15 text-[#25D366] transition-colors hover:bg-[#25D366]/25"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#25D366]/15 py-3 text-[#25D366] transition-colors hover:bg-[#25D366]/25 lg:w-[52px] lg:flex-none lg:py-0"
             >
               <MessageCircle size={16} strokeWidth={2} />
+              <span className="text-[13px] font-semibold lg:hidden">Overleg</span>
             </a>
           </div>
           <p className="-mt-3 text-center text-[11px] text-white/35">
@@ -810,7 +818,10 @@ export default function Configurator3D({
       )}
 
       {/* sticky prijsbalk op mobiel: prijs + CTA altijd binnen duimbereik */}
-      <div className="liquid-glass fixed inset-x-3 bottom-3 z-30 flex items-center justify-between gap-3 rounded-2xl p-3 pl-5 text-white lg:hidden">
+      <div
+        className="liquid-glass fixed inset-x-3 z-30 flex items-center justify-between gap-3 rounded-2xl p-3 pl-5 text-white lg:hidden"
+        style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
         <div>
           <div className="text-[11px] text-white/55">{type.label} · incl. btw</div>
           <div className="text-[18px] font-extrabold leading-tight tabular-nums">
@@ -819,8 +830,9 @@ export default function Configurator3D({
         </div>
         <button
           onClick={addToCart}
+          disabled={validation.errors.length > 0}
           className={
-            'flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-5 py-3 text-[14px] font-semibold text-white transition-all ' +
+            'flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-5 py-3 text-[14px] font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50 ' +
             (added ? 'bg-ok' : 'bg-rust hover:bg-rust-deep active:scale-[.99]')
           }
         >

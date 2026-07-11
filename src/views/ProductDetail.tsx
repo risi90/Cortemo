@@ -257,7 +257,10 @@ export function ProductDetail({
       )}
 
       {/* sticky koopbalk op mobiel: prijs + CTA altijd in beeld */}
-      <div className="liquid-glass fixed inset-x-3 bottom-3 z-30 flex items-center justify-between gap-3 rounded-2xl p-3 pl-5 text-white lg:hidden">
+      <div
+        className="liquid-glass fixed inset-x-3 z-30 flex items-center justify-between gap-3 rounded-2xl p-3 pl-5 text-white lg:hidden"
+        style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
         <div>
           <div className="text-[11px] text-white/55">Totaal incl. btw</div>
           <div className="text-[18px] font-extrabold leading-tight tabular-nums">{euro(total)}</div>
