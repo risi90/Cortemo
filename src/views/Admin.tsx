@@ -13,6 +13,7 @@ import {
   Send,
   Settings2,
   SlidersHorizontal,
+  Star,
   Trash2,
   Users,
 } from 'lucide-react'
@@ -22,6 +23,10 @@ import {
   addPartner,
   deleteDiscount,
   deletePartner,
+  deleteReview,
+  fetchAllReviews,
+  setReviewApproved,
+  type AdminReview,
   fetchDiscounts,
   fetchMailings,
   getDiscounts,
@@ -75,6 +80,7 @@ type SectionId =
   | 'producten'
   | 'collecties'
   | 'klanten'
+  | 'reviews'
   | 'configurator'
   | 'b2b'
   | 'mailings'
@@ -87,6 +93,7 @@ const SECTIONS: [SectionId, string, LucideIcon][] = [
   ['producten', 'Producten', FolderOpen],
   ['collecties', 'Collecties', SlidersHorizontal],
   ['klanten', 'Klanten', Users],
+  ['reviews', 'Reviews', Star],
   ['configurator', 'Configurator & prijzen', Settings2],
   ['b2b', 'B2B-partners', Handshake],
   ['mailings', 'Mailings', Mail],
@@ -272,6 +279,7 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
                     <div>
                       <span className="block font-semibold text-white/80">Contact</span>
                       {o.name} · {o.email}
+                      {o.phone ? ' · ' + o.phone : ''}
                     </div>
                     <div>
                       <span className="block font-semibold text-white/80">Verificatie & betaling</span>
@@ -283,6 +291,23 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
                       {o.paymentStatus ? ' · betaling ' + o.paymentStatus : ''}
                     </div>
                   </div>
+                  {(o.montage || o.note) && (
+                    <div className="grid gap-3 text-[12px] text-white/60 sm:grid-cols-2">
+                      {o.montage && (
+                        <div className="rounded-lg bg-rust/10 px-3 py-2 font-semibold text-rust">
+                          Plaatsingsservice aangevraagd — bel de klant voor afspraak en prijs.
+                        </div>
+                      )}
+                      {o.note && (
+                        <div>
+                          <span className="block font-semibold text-white/80">
+                            Opmerking van de klant
+                          </span>
+                          {o.note}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <ul className="divide-y divide-white/5 rounded-lg bg-white/5 px-3">
                     {o.items.map((item, i) => {
                       // maatwerk-items naprijzen: klantprijzen zijn clientside
@@ -385,6 +410,94 @@ function Orders({ orders, setOrders }: { orders: Order[]; setOrders: (o: Order[]
       )}
       {workOrder && <WorkOrderView order={workOrder} onClose={() => setWorkOrder(null)} />}
     </Card>
+  )
+}
+
+function ReviewsAdmin() {
+  const [reviews, setReviews] = useState<AdminReview[]>([])
+  const [loaded, setLoaded] = useState(false)
+  useEffect(() => {
+    void fetchAllReviews().then((rows) => {
+      setReviews(rows)
+      setLoaded(true)
+    })
+  }, [])
+
+  const pending = reviews.filter((r) => !r.approved)
+  const live = reviews.filter((r) => r.approved)
+
+  const toggle = (id: string, approved: boolean) => {
+    setReviewApproved(id, approved)
+    setReviews((rs) => rs.map((r) => (r.id === id ? { ...r, approved } : r)))
+  }
+  const remove = (id: string) => {
+    deleteReview(id)
+    setReviews((rs) => rs.filter((r) => r.id !== id))
+  }
+
+  const Row = ({ r }: { r: AdminReview }) => (
+    <li className="rounded-xl bg-white/5 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0 text-[13px] font-semibold text-white">
+          {'★'.repeat(r.rating)}
+          <span className="text-white/25">{'★'.repeat(5 - r.rating)}</span>
+          <span className="ml-2">{r.title || '(zonder titel)'}</span>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <button
+            onClick={() => toggle(r.id, !r.approved)}
+            className={
+              'rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors ' +
+              (r.approved
+                ? 'bg-white/10 text-white hover:bg-white/15'
+                : 'bg-ok text-white hover:opacity-90')
+            }
+          >
+            {r.approved ? 'Verberg' : 'Publiceer'}
+          </button>
+          <button
+            onClick={() => remove(r.id)}
+            aria-label={'Verwijder review van ' + r.name}
+            className="rounded-lg bg-rust/15 px-2.5 py-1.5 text-rust transition-colors hover:bg-rust/25"
+          >
+            <Trash2 size={13} strokeWidth={2} />
+          </button>
+        </div>
+      </div>
+      <p className="mt-1.5 text-[13px] leading-relaxed text-white/60">{r.body}</p>
+      <div className="mt-1.5 text-[11px] text-white/40">
+        {r.name}
+        {r.city ? ' · ' + r.city : ''} · {fmtDate(r.date)}
+        {r.productId ? ' · product: ' + (PRODUCTS.find((p) => p.id === r.productId)?.name ?? r.productId) : ' · winkelreview'}
+      </div>
+    </li>
+  )
+
+  return (
+    <div className="space-y-4">
+      <Card title={'Wacht op moderatie (' + pending.length + ')'}>
+        {pending.length === 0 ? (
+          <EmptyRow>{loaded ? 'Geen nieuwe inzendingen.' : 'Laden…'}</EmptyRow>
+        ) : (
+          <ul className="space-y-3">
+            {pending.map((r) => (
+              <Row key={r.id} r={r} />
+            ))}
+          </ul>
+        )}
+      </Card>
+      <Card title={'Gepubliceerd (' + live.length + ')'}>
+        {live.length === 0 ? (
+          <EmptyRow>{loaded ? 'Nog geen gepubliceerde reviews.' : 'Laden…'}</EmptyRow>
+        ) : (
+          <ul className="space-y-3">
+            {live.map((r) => (
+              <Row key={r.id} r={r} />
+            ))}
+          </ul>
+        )}
+      </Card>
+    </div>
   )
 }
 
@@ -955,6 +1068,7 @@ export function Admin({ onExit }: { onExit: () => void }) {
           {section === 'producten' && <ProductsAdmin />}
           {section === 'collecties' && <Collections />}
           {section === 'klanten' && <CustomersAdmin orders={orders} onOffer={startOffer} />}
+          {section === 'reviews' && <ReviewsAdmin />}
           {section === 'configurator' && <ConfiguratorSettings />}
           {section === 'b2b' && <Partners />}
           {section === 'mailings' && <Mailings />}

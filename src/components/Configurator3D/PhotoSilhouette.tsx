@@ -74,6 +74,7 @@ export function PhotoSilhouette({
           type="file"
           accept="image/*"
           className="hidden"
+          aria-label="Foto voor silhouet uploaden"
           onChange={(e) => e.target.files?.[0] && load(e.target.files[0])}
         />
 

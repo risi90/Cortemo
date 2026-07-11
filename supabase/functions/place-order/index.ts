@@ -50,7 +50,8 @@ Deno.serve(async (req: Request) => {
     })
 
   try {
-    const { name, email, address, city, items, discountCode, projectId } = await req.json()
+    const { name, email, address, city, items, discountCode, projectId, phone, note, montage } =
+      await req.json()
     if (
       typeof name !== 'string' || name.trim().length < 2 ||
       typeof email !== 'string' || !/\S+@\S+\.\S+/.test(email) ||
@@ -199,6 +200,9 @@ Deno.serve(async (req: Request) => {
       status: 'nieuw',
       payment_status: onAccount ? `op rekening (${partner!.terms} dgn)` : 'open',
       verified: true,
+      phone: String(phone ?? '').trim().slice(0, 40),
+      note: String(note ?? '').trim().slice(0, 500),
+      montage: montage === true,
     })
     if (insErr) return json(500, { error: 'Order opslaan mislukte: ' + insErr.message })
 
@@ -230,7 +234,11 @@ Deno.serve(async (req: Request) => {
         onAccount
           ? `Betaling: op rekening (${partner!.terms} dagen) — de factuur volgt per mail.`
           : '',
+        montage === true
+          ? 'Je hebt plaatsingsservice aangevraagd — we bellen je voor een afspraak en vaste prijs.'
+          : '',
         'Ons pallettransport levert doorgaans binnen 5 tot 8 werkdagen; je ontvangt bericht zodra de bestelling in productie gaat.',
+        `Volg je bestelling: https://cortemo.nl/volg-je-order (ordernummer ${orderId}).`,
         '',
         'Met vriendelijke groet,',
         'Cortemo — maatwerk cortenstaal',

@@ -7,6 +7,7 @@ import {
   ImageUp,
   Link2,
   Maximize2,
+  MessageCircle,
   RefreshCw,
   Ruler,
   Shapes,
@@ -21,6 +22,7 @@ import { calcPrice, validateConfig, type ConfigState } from '../../lib/pricing'
 import { parseCfg, serializeCfg } from '../../lib/cfg'
 import { euro } from '../../data/catalog'
 import { getActivePartner } from '../../lib/adminStore'
+import { whatsappShare } from '../TrustBar'
 import type { CartItem } from '../../lib/cart'
 
 /* ---------- UI-bouwstenen ---------- */
@@ -181,6 +183,15 @@ export default function Configurator3D({
   const [copied, setCopied] = useState(false)
   const [showBreakdown, setShowBreakdown] = useState(false)
   const [showPhoto, setShowPhoto] = useState(false)
+  // "Zie het in jouw tuin": eigen foto als achtergrond van de 3D-viewer.
+  // Blijft lokaal in de browser (dataURL), wordt nergens geüpload.
+  const [bgPhoto, setBgPhoto] = useState<string | null>(null)
+  const pickBgPhoto = (file: File | undefined) => {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => setBgPhoto(String(reader.result))
+    reader.readAsDataURL(file)
+  }
   const partner = getActivePartner()
   const validation = useMemo(
     () => validateConfig(state),
@@ -262,7 +273,18 @@ export default function Configurator3D({
       {/* viewer */}
       <div className="min-w-0 flex-1">
         <div className="liquid-glass relative overflow-hidden rounded-2xl lg:sticky lg:top-24">
-          <div className="h-[46vh] min-h-[320px] lg:h-[600px]">
+          <div
+            className="h-[46vh] min-h-[320px] lg:h-[600px]"
+            style={
+              bgPhoto
+                ? {
+                    backgroundImage: `url(${bgPhoto})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }
+                : undefined
+            }
+          >
             <Canvas
               shadows
               dpr={[1, 2]}
@@ -287,7 +309,38 @@ export default function Configurator3D({
             <ViewerButton onClick={toggleAutoRotate} active={autoRotate} title="Automatisch draaien">
               <RefreshCw size={14} strokeWidth={2} />
             </ViewerButton>
+            {bgPhoto ? (
+              <ViewerButton
+                onClick={() => setBgPhoto(null)}
+                active
+                title="Tuinfoto als achtergrond verwijderen"
+              >
+                <ImageUp size={14} strokeWidth={2} />
+              </ViewerButton>
+            ) : (
+              <label
+                title="Zie het in jouw tuin: eigen foto als achtergrond"
+                className="flex h-10 min-w-10 cursor-pointer items-center justify-center gap-1 rounded-lg bg-black/35 px-2.5 text-[11px] font-semibold text-white/80 backdrop-blur-md transition-colors hover:bg-black/50"
+              >
+                <ImageUp size={14} strokeWidth={2} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  aria-label="Zie het in jouw tuin: eigen foto als achtergrond"
+                  onChange={(e) => {
+                    pickBgPhoto(e.target.files?.[0])
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+            )}
           </div>
+          {bgPhoto && (
+            <div className="pointer-events-none absolute left-4 top-3 rounded-lg bg-black/35 px-2.5 py-1.5 text-[11px] font-semibold text-white/80 backdrop-blur-md">
+              Jouw tuin als achtergrond — foto blijft op je eigen apparaat
+            </div>
+          )}
 
           <div className="pointer-events-none absolute bottom-3 left-4 hidden text-[11px] text-white/45 sm:block">
             Sleep om te draaien &middot; scroll of knijp om in te zoomen tot op de naad
@@ -728,10 +781,20 @@ export default function Configurator3D({
             >
               {copied ? <Check size={16} strokeWidth={2} className="text-ok" /> : <Link2 size={16} strokeWidth={2} />}
             </button>
+            <a
+              href={whatsappShare('Hoi Cortemo! Kunnen jullie meedenken met dit ontwerp? ' + (typeof location !== 'undefined' ? location.href : ''))}
+              target="_blank"
+              rel="noreferrer"
+              title="Bespreek dit ontwerp via WhatsApp"
+              aria-label="Bespreek dit ontwerp via WhatsApp"
+              className="flex w-[52px] items-center justify-center rounded-xl bg-[#25D366]/15 text-[#25D366] transition-colors hover:bg-[#25D366]/25"
+            >
+              <MessageCircle size={16} strokeWidth={2} />
+            </a>
           </div>
           <p className="-mt-3 text-center text-[11px] text-white/35">
             Ontwerp opslaan of overleggen? De deelknop kopieert een link naar exact deze
-            configuratie.
+            configuratie; via WhatsApp denken we gratis met je mee.
           </p>
         </div>
       </div>

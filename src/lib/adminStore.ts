@@ -156,6 +156,10 @@ export type Order = {
   /** true = prijzen zijn server-side herrekend door de place-order functie. */
   verified?: boolean
   paymentStatus?: string
+  phone?: string
+  note?: string
+  /** Klant heeft plaatsingsservice aangevraagd (offerte volgt telefonisch). */
+  montage?: boolean
 }
 
 const ORDERS_KEY = 'cortemo-orders'
@@ -188,6 +192,9 @@ export async function placeOrder(
         items: input.items,
         discountCode: input.discountCode,
         projectId: input.projectId || '',
+        phone: input.phone ?? '',
+        note: input.note ?? '',
+        montage: !!input.montage,
       },
     })
     if (data?.ok && data.orderId) {
@@ -240,6 +247,9 @@ export function saveOrder(order: Order): void {
       discount_amount: order.discountAmount,
       project_id: order.projectId || null,
       status: order.status,
+      phone: order.phone ?? '',
+      note: order.note ?? '',
+      montage: !!order.montage,
     }),
   )
 }
@@ -267,6 +277,9 @@ export async function fetchOrders(): Promise<Order[]> {
         status: r.status as OrderStatus,
         verified: r.verified ?? false,
         paymentStatus: r.payment_status ?? '',
+        phone: r.phone ?? '',
+        note: r.note ?? '',
+        montage: r.montage ?? false,
       }))
       write(ORDERS_KEY, orders)
       return orders
@@ -1152,4 +1165,51 @@ export function deriveCustomers(orders: Order[]): Customer[] {
     }
   }
   return [...map.values()].sort((a, b) => b.revenue - a.revenue)
+}
+
+/* ---------- reviews (moderatie) ---------- */
+
+export type AdminReview = {
+  id: string
+  date: string
+  productId: string
+  name: string
+  city: string
+  rating: number
+  title: string
+  body: string
+  approved: boolean
+}
+
+/** Alle reviews (ook ongepubliceerde); vereist een ingelogde beheerder. */
+export async function fetchAllReviews(): Promise<AdminReview[]> {
+  if (!supabase) return []
+  try {
+    const { data, error } = await supabase
+      .from('cortemo_reviews')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error || !data) return []
+    return data.map((r) => ({
+      id: r.id,
+      date: String(r.created_at).slice(0, 10),
+      productId: r.product_id ?? '',
+      name: r.name,
+      city: r.city ?? '',
+      rating: Number(r.rating),
+      title: r.title ?? '',
+      body: r.body,
+      approved: !!r.approved,
+    }))
+  } catch {
+    return []
+  }
+}
+
+export function setReviewApproved(id: string, approved: boolean): void {
+  fire(supabase?.from('cortemo_reviews').update({ approved }).eq('id', id))
+}
+
+export function deleteReview(id: string): void {
+  fire(supabase?.from('cortemo_reviews').delete().eq('id', id))
 }

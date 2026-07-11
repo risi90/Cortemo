@@ -12,13 +12,22 @@ import { Configurator } from './views/Configurator'
 import { Checkout } from './views/Checkout'
 import { Story } from './views/Story'
 import { Service } from './views/Service'
+import { OrderTracker } from './views/OrderTracker'
 import { Admin } from './views/Admin'
 import { GROUPS, hydrateCatalog, hydrateCollections, PRODUCTS, type GroupId } from './data/catalog'
 import { ACCELERATOR, cartCount, type CartItem } from './lib/cart'
 import { fetchCollections, fetchDbProducts, fetchPricing, getCollections } from './lib/adminStore'
 import { useTheme } from './lib/useTheme'
 
-type Page = 'inspiratie' | 'b2b' | 'maatwerk' | 'checkout' | 'verhaal' | 'service' | 'admin'
+type Page =
+  | 'inspiratie'
+  | 'b2b'
+  | 'maatwerk'
+  | 'checkout'
+  | 'verhaal'
+  | 'service'
+  | 'admin'
+  | 'volgen'
 type View = 'root' | 'list' | 'pdp' | Page
 
 type NavState = {
@@ -29,7 +38,16 @@ type NavState = {
   sub: string | null
 }
 
-const PAGES: Page[] = ['inspiratie', 'b2b', 'maatwerk', 'checkout', 'verhaal', 'service', 'admin']
+const PAGES: Page[] = [
+  'inspiratie',
+  'b2b',
+  'maatwerk',
+  'checkout',
+  'verhaal',
+  'service',
+  'admin',
+  'volgen',
+]
 
 /** Nette, SEO-vriendelijke paden per pagina (met SPA-rewrite op de host). */
 const PAGE_PATHS: Record<Page, string> = {
@@ -40,6 +58,7 @@ const PAGE_PATHS: Record<Page, string> = {
   verhaal: '/verhaal',
   service: '/service',
   admin: '/beheer',
+  volgen: '/volg-je-order',
 }
 
 function stateFromLocation(): NavState {
@@ -98,6 +117,7 @@ function applySeo(s: NavState) {
     verhaal: 'Ons verhaal: liefhebbers van staal — Cortemo',
     service: 'Service, levering & voorwaarden — Cortemo',
     admin: 'Beheer — Cortemo',
+    volgen: 'Volg je bestelling — Cortemo',
   }
   const descriptions: Partial<Record<View, string>> = {
     root: 'Cortenstaal op maat: plantenbakken, keerwanden, borderranden en schuttingen. Ontwerp in 3D, zie direct de prijs en ontvang binnen 15 werkdagen.',
@@ -108,6 +128,8 @@ function applySeo(s: NavState) {
     maatwerk: 'Stel je cortenstalen product samen tot op de millimeter en zie direct wat het kost.',
     service:
       'Veelgestelde vragen, levertijden, retourneren en de kern van onze voorwaarden en privacyverklaring.',
+    volgen:
+      'Volg je Cortemo-bestelling van werkplaats tot bezorging met je ordernummer en e-mailadres.',
   }
   document.title = titles[s.view]
   const setMeta = (name: string, content: string | null) => {
@@ -332,6 +354,7 @@ export function App() {
             onBack={() => openList(nav.groupId)}
             onAdd={addItem}
             onConfigurator={() => openPage('maatwerk')}
+            onPick={openProduct}
           />
         )}
         {nav.view === 'inspiratie' && <Inspiration onShop={openList} />}
@@ -363,6 +386,7 @@ export function App() {
         )}
         {nav.view === 'verhaal' && <Story onConfigurator={() => openPage('maatwerk')} />}
         {nav.view === 'service' && <Service />}
+        {nav.view === 'volgen' && <OrderTracker />}
         {nav.view === 'admin' && <Admin onExit={() => openPage('root')} />}
         <CartDrawer
           open={cartOpen}

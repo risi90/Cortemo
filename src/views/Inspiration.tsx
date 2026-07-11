@@ -17,11 +17,14 @@ type Project = {
   icon: LucideIcon
   /** Hoogte van de kaart, voor het editorial masonry-ritme. */
   h: string
+  /** Deelbare configurator-URL om deze look zelf na te bouwen. */
+  cfg?: string
 }
 
 const PROJECTS: Project[] = [
   {
     id: 'stadstuin-keerwanden',
+    cfg: 'keerwand.2000x0x600.3.',
     title: 'Moderne stadstuin met U-vormige keerwanden',
     desc: 'Twee niveaus, gescheiden door naadloos gelaste keerwanden van 60 cm hoog. Het gazon loopt strak door tot tegen het staal.',
     tag: 'Stadstuinen',
@@ -33,6 +36,7 @@ const PROJECTS: Project[] = [
   },
   {
     id: 'entree-cubo',
+    cfg: 'plantenbak.800x800x800.3.',
     title: 'Symmetrische entree met Cubo-bakken',
     desc: 'Twee kubusbakken van 80 cm flankeren de voordeur, beplant met meerstammige krentenboompjes.',
     tag: 'Voortuinen',
@@ -55,6 +59,7 @@ const PROJECTS: Project[] = [
   },
   {
     id: 'terras-brasserie',
+    cfg: 'plantenbak.2400x500x600.3.',
     title: 'Terrasafscheiding voor Brasserie De Linde',
     desc: 'Veertig meter plantenbakken als windluwe terrasrand, met geïntegreerde parasolvoeten.',
     tag: 'Zakelijk & Horeca',
@@ -77,6 +82,7 @@ const PROJECTS: Project[] = [
   },
   {
     id: 'voortuin-borderrand',
+    cfg: 'borderrand.2200x0x150.2.pennen',
     title: 'Onderhoudsvrije voortuin met borderranden',
     desc: 'Grind, siergrassen en een strak cortenstalen lijnenspel dat het pad naar de voordeur begeleidt.',
     tag: 'Voortuinen',
@@ -88,6 +94,7 @@ const PROJECTS: Project[] = [
   },
   {
     id: 'wandkunst-patio',
+    cfg: 'figuur.0x0x800.3..f~boom~s~1000',
     title: 'Patio met lasergesneden wandkunst',
     desc: 'Wandpaneel Silva vangt het avondlicht en werpt een boomsilhouet op de witte tuinmuur.',
     tag: 'Stadstuinen',
@@ -99,6 +106,7 @@ const PROJECTS: Project[] = [
   },
   {
     id: 'moestuin-verde',
+    cfg: 'plantenbak.1500x800x500.3.',
     title: 'Kweektuin op werkhoogte',
     desc: 'Drie Verde-moestuinbakken in carré-opstelling, met slakkenrand en geïntegreerde beregening.',
     tag: 'Voortuinen',
@@ -120,9 +128,15 @@ const TAGS: ('Alle projecten' | ProjectTag)[] = [
 function ProjectCard({ p, onShop }: { p: Project; onShop: (g: GroupId, sub?: string) => void }) {
   const Icon = p.icon
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onShop(p.group, p.sub)}
-      className={'group relative mb-4 block w-full overflow-hidden rounded-2xl text-left ' + p.h}
+      onKeyDown={(e) => e.key === 'Enter' && onShop(p.group, p.sub)}
+      className={
+        'group relative mb-4 block w-full cursor-pointer overflow-hidden rounded-2xl text-left ' +
+        p.h
+      }
     >
       {p.img ? (
         <img
@@ -147,11 +161,22 @@ function ProjectCard({ p, onShop }: { p: Project; onShop: (g: GroupId, sub?: str
         <div className="mt-1 hidden text-[12px] leading-relaxed text-white/75 opacity-0 transition-opacity duration-300 group-hover:opacity-100 sm:block">
           {p.desc}
         </div>
-        <span className="mt-3 inline-flex items-center rounded-full bg-white/90 px-4 py-2 text-[12px] font-semibold text-ink shadow-sm transition-opacity duration-300 sm:opacity-0 sm:group-hover:opacity-100">
-          Shop deze look &rarr;
+        <span className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center rounded-full bg-white/90 px-4 py-2 text-[12px] font-semibold text-ink shadow-sm transition-opacity duration-300 sm:opacity-0 sm:group-hover:opacity-100">
+            Shop deze look &rarr;
+          </span>
+          {p.cfg && (
+            <a
+              href={'/maatwerk?cfg=' + p.cfg}
+              onClick={(e) => e.stopPropagation()}
+              className="pointer-events-auto inline-flex items-center rounded-full bg-rust px-4 py-2 text-[12px] font-semibold text-white shadow-sm transition-opacity duration-300 hover:bg-rust-deep sm:opacity-0 sm:group-hover:opacity-100"
+            >
+              Bouw na in 3D &rarr;
+            </a>
+          )}
         </span>
       </div>
-    </button>
+    </div>
   )
 }
 

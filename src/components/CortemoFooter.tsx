@@ -17,6 +17,7 @@ const footerCols = (): FooterCol[] => [
       ['Ons verhaal', '/verhaal'],
       ['Zakelijk portal (B2B)', '/zakelijk'],
       ['Contact', 'mailto:hallo@cortemo.nl'],
+      ['WhatsApp advies', 'https://wa.me/31612345678'],
       ['Werken bij Cortemo', 'mailto:hallo@cortemo.nl?subject=Werken%20bij%20Cortemo'],
       ['Beheer', '/beheer'],
     ],
@@ -24,6 +25,8 @@ const footerCols = (): FooterCol[] => [
   {
     title: 'Service',
     links: [
+      ['Volg je bestelling', '/volg-je-order'],
+      ['Gratis proefstuk', '/product/proefstuk'],
       ['Veelgestelde vragen', '/service#faq'],
       ['Levering & retour', '/service#levering'],
       ['Algemene voorwaarden', '/service#voorwaarden'],

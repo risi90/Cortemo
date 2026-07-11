@@ -2,6 +2,8 @@ import { ArrowRight, Shapes } from 'lucide-react'
 import { GROUP_IMG, GROUPS, PRODUCTS, type Group, type GroupId } from '../data/catalog'
 import { ProductImage } from '../components/ProductImage'
 import { MiniConfigurator } from '../components/MiniConfigurator'
+import { ReviewStrip } from '../components/Reviews'
+import { TrustBar } from '../components/TrustBar'
 import { useConfiguratorStore } from '../store/configuratorStore'
 
 const count = (id: GroupId) => PRODUCTS.filter((p) => p.group === id).length
@@ -176,7 +178,9 @@ export function GroupGrid({
         <Cell g={GROUPS[2]} extra="" big={false} onPick={onPick} />
         <Cell g={GROUPS[3]} extra="sm:col-span-2 md:col-span-3" big onPick={onPick} />
       </div>
+      <TrustBar className="mt-6" />
       </div>
+      <ReviewStrip />
     </div>
   )
 }

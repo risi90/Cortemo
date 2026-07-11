@@ -2,18 +2,54 @@ import { useEffect, useState } from 'react'
 import { Check, ChevronDown, ChevronLeft, Ruler, ShoppingCart } from 'lucide-react'
 import { euro, GROUP_IMG, GROUPS, PRODUCTS } from '../data/catalog'
 import { ProductImage } from '../components/ProductImage'
+import { ReviewBlock } from '../components/Reviews'
+import { AdviceCard, TrustBar } from '../components/TrustBar'
 import type { CartItem } from '../lib/cart'
+
+/** Hoe cortenstaal verkleurt — verwachtingsmanagement dat verkoopt. */
+function PatinaBlock() {
+  const steps: [string, string][] = [
+    ['Week 0', 'Blank, staalgrijs — zo komt het (zonder versneld roestproces) uit de werkplaats.'],
+    ['Week 2–6', 'De eerste oranje roestwaas verschijnt; ieder paneel kleurt nét anders.'],
+    ['Maand 2–6', 'Diep, egaal roestbruin. De patinalaag beschermt het staal eronder — corten roest niet dóór.'],
+  ]
+  return (
+    <section className="mt-10" aria-label="Over het roestproces">
+      <h2 className="text-[18px] font-bold text-white">Zo verkleurt je cortenstaal</h2>
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        {steps.map(([label, text]) => (
+          <div key={label} className="liquid-glass rounded-2xl p-5 text-white">
+            <div className="text-[12px] font-bold uppercase tracking-[.08em] text-rust">
+              {label}
+            </div>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-white/60">{text}</p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[12px] leading-relaxed text-white/45">
+        Tip: in de eerste maanden kan roestwater uitlopen op poreuze ondergrond. Zet het product op
+        grind of gras, of kies de anti-uitspoeling coating. Twijfel je over de kleur? Bestel het{' '}
+        <a href="/product/proefstuk" className="font-semibold text-rust hover:underline">
+          gratis proefstuk
+        </a>{' '}
+        met beide stadia.
+      </p>
+    </section>
+  )
+}
 
 export function ProductDetail({
   productId,
   onBack,
   onAdd,
   onConfigurator,
+  onPick,
 }: {
   productId: string
   onBack: () => void
   onAdd: (item: Omit<CartItem, 'qty'>) => void
   onConfigurator: () => void
+  onPick: (id: string) => void
 }) {
   const p = PRODUCTS.find((x) => x.id === productId)!
   const [variant, setVariant] = useState(0)
@@ -31,6 +67,9 @@ export function ProductDetail({
     p.options.reduce((s, [label, price]) => s + (opts[label] ? price : 0), 0)
 
   const soldOut = p.stock === 0
+  const related = PRODUCTS.filter(
+    (x) => x.group === p.group && x.id !== p.id && x.id !== 'proefstuk',
+  ).slice(0, 3)
 
   const add = () => {
     if (soldOut) return
@@ -67,6 +106,7 @@ export function ProductDetail({
           <div className="h-[300px] sm:h-[420px] lg:h-[520px]">
             <ProductImage src={p.img || GROUP_IMG[p.group]} label={p.name} radius={20} />
           </div>
+          <TrustBar className="mt-4" />
         </div>
 
         {/* aankoop-sidebar */}
@@ -178,8 +218,43 @@ export function ProductDetail({
               Naar de 3D Configurator &rarr;
             </span>
           </button>
+
+          <AdviceCard context={p.name} />
         </div>
       </div>
+
+      {p.id !== 'proefstuk' && <PatinaBlock />}
+
+      <ReviewBlock productId={p.id} />
+
+      {related.length > 0 && (
+        <section className="mt-10" aria-label="Gerelateerde producten">
+          <h2 className="text-[18px] font-bold text-white">Vaak samen bekeken</h2>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {related.map((r) => (
+              <button
+                key={r.id}
+                onClick={() => onPick(r.id)}
+                className="liquid-glass group overflow-hidden rounded-2xl text-left text-white transition-all hover:-translate-y-0.5"
+              >
+                <div className="h-[150px]">
+                  <ProductImage src={r.img || GROUP_IMG[r.group]} label={r.name} radius={0} />
+                </div>
+                <div className="flex items-baseline justify-between gap-2 p-4">
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-bold">{r.name}</span>
+                    <span className="block text-[12px] text-white/50">{r.dims}</span>
+                  </span>
+                  <span className="shrink-0 text-[13px] font-bold tabular-nums">
+                    <span className="mr-1 text-[11px] font-normal text-white/45">vanaf</span>
+                    {euro(r.price)}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* sticky koopbalk op mobiel: prijs + CTA altijd in beeld */}
       <div className="liquid-glass fixed inset-x-3 bottom-3 z-30 flex items-center justify-between gap-3 rounded-2xl p-3 pl-5 text-white lg:hidden">

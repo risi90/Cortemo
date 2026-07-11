@@ -40,7 +40,10 @@ export function Checkout({
     street: '',
     zip: '',
     city: '',
+    phone: '',
+    note: '',
   })
+  const [montage, setMontage] = useState(false)
   const set = (key: keyof typeof form) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }))
   const [codeInput, setCodeInput] = useState('')
@@ -92,6 +95,9 @@ export function Checkout({
       discountCode: discount?.code ?? '',
       discountAmount,
       projectId,
+      phone: form.phone,
+      note: form.note,
+      montage,
     })
     setBusy(false)
     if (!result.ok) {
@@ -115,8 +121,19 @@ export function Checkout({
             </h1>
             <p className="mt-2 text-[14px] leading-relaxed text-white/60">
               Je bestelling <span className="font-semibold text-white">{placed}</span> is
-              geplaatst. Je ontvangt de bevestiging en track &amp; trace op {form.email}. Ons
-              pallettransport levert binnen 5 tot 8 werkdagen.
+              geplaatst. Je ontvangt de bevestiging op {form.email}. Volg je bestelling van
+              werkplaats tot bezorging via{' '}
+              <a href="/volg-je-order" className="font-semibold text-rust hover:underline">
+                Volg je bestelling
+              </a>
+              . Ons pallettransport levert binnen 5 tot 8 werkdagen.
+              {montage && (
+                <>
+                  {' '}
+                  Voor de <span className="font-semibold text-white">plaatsingsservice</span>{' '}
+                  bellen we je binnen één werkdag met een vaste prijs.
+                </>
+              )}
               {onAccountLabel && (
                 <>
                   {' '}
@@ -266,6 +283,52 @@ export function Checkout({
               />
             </div>
           </div>
+          <div>
+            <div className="mb-2 text-[13px] font-semibold">
+              Telefoonnummer <span className="font-normal text-white/40">(optioneel)</span>
+            </div>
+            <input
+              type="tel"
+              autoComplete="tel"
+              placeholder="06 12345678"
+              value={form.phone}
+              onChange={(e) => set('phone')(e.target.value)}
+              className={field}
+            />
+            <p className="mt-1.5 text-[12px] text-white/40">
+              De chauffeur belt vooraf om de bezorging af te stemmen.
+            </p>
+          </div>
+          <div>
+            <div className="mb-2 text-[13px] font-semibold">
+              Opmerkingen <span className="font-normal text-white/40">(optioneel)</span>
+            </div>
+            <textarea
+              rows={2}
+              placeholder="Bijv. achterom bereikbaar, liever bezorging op vrijdag…"
+              value={form.note}
+              onChange={(e) => set('note')(e.target.value)}
+              aria-label="Opmerkingen bij je bestelling"
+              className={field + ' resize-y'}
+            />
+          </div>
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-white/5 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={montage}
+              onChange={() => setMontage((v) => !v)}
+              className="mt-0.5 h-4 w-4 rounded accent-[#D95A2B]"
+            />
+            <span>
+              <span className="block text-[13px] font-semibold text-white">
+                Plaatsingsservice aanvragen
+              </span>
+              <span className="block text-[12px] leading-snug text-white/50">
+                Wij of een hovenier uit ons netwerk plaatsen het staal waterpas en verankerd. Na je
+                bestelling bellen we je met een vaste prijs — je zit nog nergens aan vast.
+              </span>
+            </span>
+          </label>
 
           <div>
             <div className="mb-2 text-[13px] font-semibold">Betaalwijze</div>

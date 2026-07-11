@@ -34,6 +34,7 @@ const FILES = [
   'silva.jpg',
   'den.jpg',
   'deco.jpg',
+  'proefstuk.jpg',
   'insp-brasserie.jpg',
   'insp-daktuin.jpg',
   'insp-voortuin.jpg',
