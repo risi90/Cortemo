@@ -9,6 +9,7 @@ const footerCols = (): FooterCol[] => [
     links: [
       ...GROUPS.map((g): [string, string] => [g.label, '/collectie/' + g.id]),
       ['Configurator', '/maatwerk'],
+      ['Eigen ontwerp (DXF)', '/eigen-ontwerp'],
     ],
   },
   {

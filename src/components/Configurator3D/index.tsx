@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import {
-  Box,
   Check,
   ChevronDown,
+  FileUp,
   ImageUp,
   Link2,
   Maximize2,
   MessageCircle,
   RefreshCw,
   Ruler,
-  Shapes,
   ShoppingCart,
 } from 'lucide-react'
 import { Scene } from './Scene'
@@ -26,6 +25,9 @@ import { whatsappShare } from '../TrustBar'
 import type { CartItem } from '../../lib/cart'
 
 /* ---------- UI-bouwstenen ---------- */
+
+/** De vier stappen van het configurator-stappenplan. */
+const WIZARD_STEPS = ['Product', 'Maat', 'Ontwerp', 'Bestellen'] as const
 
 function ViewerButton({
   onClick,
@@ -101,49 +103,6 @@ function DimensionControl({ dimKey }: { dimKey: DimensionKey }) {
   )
 }
 
-/** Inklapbare paneelsectie: houdt de editor overzichtelijk, zeker op mobiel. */
-function Section({
-  title,
-  icon,
-  summary,
-  defaultOpen = false,
-  children,
-}: {
-  title: string
-  icon?: React.ReactNode
-  /** Korte samenvatting van de huidige keuze, zichtbaar als de sectie dicht is. */
-  summary?: string
-  defaultOpen?: boolean
-  children: React.ReactNode
-}) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <div className="border-b border-white/10 pb-4 last:border-b-0 last:pb-0">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 text-left"
-      >
-        <span className="flex items-center gap-2 text-[13px] font-semibold text-white">
-          {icon}
-          {title}
-        </span>
-        <span className="flex min-w-0 items-center gap-2">
-          {!open && summary && (
-            <span className="truncate text-[12px] text-white/45">{summary}</span>
-          )}
-          <ChevronDown
-            size={14}
-            strokeWidth={2}
-            className={'shrink-0 text-white/40 transition-transform ' + (open ? 'rotate-180' : '')}
-          />
-        </span>
-      </button>
-      {open && <div className="mt-3">{children}</div>}
-    </div>
-  )
-}
-
 /* ---------- hoofdcomponent ---------- */
 
 export default function Configurator3D({
@@ -183,6 +142,8 @@ export default function Configurator3D({
   const [copied, setCopied] = useState(false)
   const [showBreakdown, setShowBreakdown] = useState(false)
   const [showPhoto, setShowPhoto] = useState(false)
+  // actieve stap van het stappenplan (het paneel toont één stap tegelijk)
+  const [step, setStep] = useState(0)
   // "Zie het in jouw tuin": eigen foto als achtergrond van de 3D-viewer.
   // Blijft lokaal in de browser (dataURL), wordt nergens geüpload.
   const [bgPhoto, setBgPhoto] = useState<string | null>(null)
@@ -369,84 +330,122 @@ export default function Configurator3D({
         </div>
       </div>
 
-      {/* paneel */}
+      {/* paneel: stappenplan — kort per stap, het 3D-ontwerp blijft altijd
+          in beeld en de prijs rekent live mee */}
       <div className="w-full shrink-0 lg:w-[420px]">
-        <div className="liquid-glass flex flex-col gap-5 rounded-2xl p-5 text-white sm:gap-6 sm:p-7">
-          {/* producttype */}
-          <Section title="Producttype" summary={type.label} defaultOpen>
-            <div className="grid grid-cols-2 gap-2">
-              {CONFIG_TYPES.map((t) => (
+        <div className="liquid-glass flex flex-col gap-5 rounded-2xl p-5 text-white sm:p-6">
+          {/* stappen */}
+          <div className="grid grid-cols-4 gap-1">
+            {WIZARD_STEPS.map((label, i) => {
+              const done = i < step
+              const active = i === step
+              return (
                 <button
-                  key={t.id}
-                  onClick={() => setType(t.id)}
+                  key={label}
+                  onClick={() => setStep(i)}
+                  aria-current={active ? 'step' : undefined}
                   className={
-                    'rounded-xl border px-3 py-2.5 text-left text-[13px] font-semibold transition-all ' +
-                    (t.id === typeId
-                      ? 'border-rust bg-white/10 text-white shadow-sm'
-                      : 'border-transparent bg-white/5 text-white/55 hover:text-white')
+                    'flex flex-col items-center gap-1.5 rounded-xl px-1 py-2 transition-colors ' +
+                    (active ? 'bg-white/5' : 'hover:bg-white/5')
                   }
                 >
-                  {t.label}
+                  <span
+                    className={
+                      'flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold ' +
+                      (active
+                        ? 'bg-rust text-white'
+                        : done
+                          ? 'bg-ok text-white'
+                          : 'bg-white/10 text-white/50')
+                    }
+                  >
+                    {done ? <Check size={12} strokeWidth={2.5} /> : i + 1}
+                  </span>
+                  <span
+                    className={
+                      'text-[11px] font-semibold ' +
+                      (active ? 'text-white' : done ? 'text-white/70' : 'text-white/40')
+                    }
+                  >
+                    {label}
+                  </span>
                 </button>
-              ))}
-            </div>
-            <p className="mt-2 text-[12px] leading-relaxed text-white/50">{type.desc}</p>
-          </Section>
+              )
+            })}
+          </div>
+          {/* compacte samenvatting van de keuzes tot nu toe */}
+          <p className="-mt-2 truncate text-center text-[12px] text-white/45">
+            {type.label} &middot; {type.dimensions.map((d) => dims[d.key]).join(' × ')} mm &middot;{' '}
+            {thickness} mm staal
+          </p>
 
-          {/* afmetingen */}
-          <Section
-            title="Afmetingen"
-            icon={<Ruler size={14} strokeWidth={2} className="text-rust" />}
-            summary={type.dimensions.map((d) => dims[d.key]).join(' × ') + ' mm'}
-            defaultOpen
-          >
-            <div className="space-y-4">
-              {type.dimensions.map((d) => (
-                <DimensionControl key={typeId + d.key} dimKey={d.key} />
-              ))}
+          {/* stap 1: producttype */}
+          {step === 0 && (
+            <div>
+              <h2 className="text-[15px] font-bold">Kies je producttype</h2>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {CONFIG_TYPES.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setType(t.id)}
+                    className={
+                      'rounded-xl border px-3 py-2.5 text-left text-[13px] font-semibold transition-all ' +
+                      (t.id === typeId
+                        ? 'border-rust bg-white/10 text-white shadow-sm'
+                        : 'border-transparent bg-white/5 text-white/55 hover:text-white')
+                    }
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[12px] leading-relaxed text-white/50">{type.desc}</p>
+              <a
+                href="/eigen-ontwerp"
+                className="mt-3 flex items-center gap-2 rounded-xl border border-dashed border-white/20 px-3 py-2.5 text-[12px] font-semibold text-white/60 transition-colors hover:border-rust hover:text-white"
+              >
+                <FileUp size={14} strokeWidth={2} className="shrink-0 text-rust" />
+                Iets anders of eigen ontwerp? Wij tekenen mee &rarr;
+              </a>
             </div>
-          </Section>
+          )}
 
-          {/* staaldikte */}
-          <Section
-            title="Staaldikte"
-            icon={<Box size={14} strokeWidth={2} className="text-rust" />}
-            summary={thickness + ' mm'}
-          >
-            <div className="flex gap-2">
-              {type.thicknesses.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setThickness(t)}
-                  className={
-                    'flex-1 rounded-xl border py-2.5 text-[13px] font-semibold tabular-nums transition-all ' +
-                    (t === thickness
-                      ? 'border-rust bg-white/10 text-white shadow-sm'
-                      : 'border-transparent bg-white/5 text-white/55 hover:text-white')
-                  }
-                >
-                  {t} mm
-                </button>
-              ))}
+          {/* stap 2: maat & dikte */}
+          {step === 1 && (
+            <div>
+              <h2 className="text-[15px] font-bold">Bepaal de maat</h2>
+              <div className="mt-3 space-y-4">
+                {type.dimensions.map((d) => (
+                  <DimensionControl key={typeId + d.key} dimKey={d.key} />
+                ))}
+              </div>
+              <div className="mt-4">
+                <div className="mb-2 text-[13px] font-semibold">Staaldikte</div>
+                <div className="flex gap-2">
+                  {type.thicknesses.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setThickness(t)}
+                      className={
+                        'flex-1 rounded-xl border py-2.5 text-[13px] font-semibold tabular-nums transition-all ' +
+                        (t === thickness
+                          ? 'border-rust bg-white/10 text-white shadow-sm'
+                          : 'border-transparent bg-white/5 text-white/55 hover:text-white')
+                      }
+                    >
+                      {t} mm
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </Section>
+          )}
 
-          {/* ontwerp-editor: figuur, tekst en nummer (versleepbaar in 3D) */}
-          {type.deco && deco && (
-            <Section
-              title="Ontwerp"
-              icon={<Shapes size={14} strokeWidth={2} className="text-rust" />}
-              summary={
-                [
-                  deco.fig ? (deco.fig === 'custom' ? 'eigen silhouet' : figure(deco.fig)?.label) : '',
-                  deco.text.trim() ? '“' + deco.text.trim().split('\n')[0] + '”' : '',
-                  deco.nr.trim() ? 'nr. ' + deco.nr.trim() : '',
-                ]
-                  .filter(Boolean)
-                  .join(' · ') || 'nog leeg'
-              }
-              defaultOpen
-            >
+          {/* stap 3: ontwerp-editor — figuur, tekst en nummer (versleepbaar) */}
+          {step === 2 && type.deco && deco && (
+            <div>
+              <h2 className="text-[15px] font-bold">Maak het persoonlijk</h2>
+              <div className="mt-3">
               {type.deco !== 'vorm' && (
                 <div className="mb-3 flex gap-2">
                   {(
@@ -473,7 +472,6 @@ export default function Configurator3D({
                   ))}
                 </div>
               )}
-
               {(type.deco === 'bord' || type.deco === 'accent') && (
                 <div className="mb-3 space-y-2">
                   <div className={type.deco === 'bord' ? 'grid grid-cols-[1fr_88px] gap-2' : ''}>
@@ -641,56 +639,39 @@ export default function Configurator3D({
                   </p>
                 </>
               )}
-            </Section>
-          )}
-
-          {/* opties */}
-          <Section
-            title="Opties"
-            summary={
-              type.options.filter((o) => options[o.id]).map((o) => o.label).join(' · ') || 'geen'
-            }
-          >
-            <div className="divide-y divide-white/5 rounded-xl bg-white/5 px-1">
-              {type.options.map((o) => (
-                <label
-                  key={o.id}
-                  className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3"
-                >
-                  <span className="flex items-center gap-2.5 text-[13px] text-white/80">
-                    <input
-                      type="checkbox"
-                      checked={!!options[o.id]}
-                      onChange={() => toggleOption(o.id)}
-                      className="h-4 w-4 rounded accent-[#D95A2B]"
-                    />
-                    {o.label}
-                  </span>
-                  <span className="text-[12px] tabular-nums text-white/50">
-                    {o.price > 0 ? '+ ' + euro(o.price) : o.hint || 'inbegrepen'}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </Section>
-
-          {/* fabricage-meldingen */}
-          {(validation.errors.length > 0 || validation.warnings.length > 0) && (
-            <div className="space-y-1.5">
-              {validation.errors.map((msg) => (
-                <p key={msg} className="rounded-lg border border-rust/40 bg-rust/10 px-3 py-2 text-[12px] font-medium leading-relaxed text-rust" role="alert">
-                  {msg}
-                </p>
-              ))}
-              {validation.warnings.map((msg) => (
-                <p key={msg} className="rounded-lg bg-white/5 px-3 py-2 text-[12px] leading-relaxed text-white/70">
-                  ⚠ {msg}
-                </p>
-              ))}
+              </div>
             </div>
           )}
 
-          {/* prijs */}
+          {/* stap 4: opties, prijs en bestellen */}
+          {step === 3 && (
+            <div className="flex flex-col gap-5">
+              <div>
+                <h2 className="text-[15px] font-bold">Opties &amp; bestellen</h2>
+                <div className="mt-3 divide-y divide-white/5 rounded-xl bg-white/5 px-1">
+                  {type.options.map((o) => (
+                    <label
+                      key={o.id}
+                      className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3"
+                    >
+                      <span className="flex items-center gap-2.5 text-[13px] text-white/80">
+                        <input
+                          type="checkbox"
+                          checked={!!options[o.id]}
+                          onChange={() => toggleOption(o.id)}
+                          className="h-4 w-4 rounded accent-[#D95A2B]"
+                        />
+                        {o.label}
+                      </span>
+                      <span className="text-[12px] tabular-nums text-white/50">
+                        {o.price > 0 ? '+ ' + euro(o.price) : o.hint || 'inbegrepen'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+            {/* prijs */}
           <div className="border-t border-white/10 pt-4">
             <button
               onClick={() => setShowBreakdown((v) => !v)}
@@ -805,6 +786,53 @@ export default function Configurator3D({
             Ontwerp opslaan of overleggen? De deelknop kopieert een link naar exact deze
             configuratie; via WhatsApp denken we gratis met je mee.
           </p>
+            </div>
+          )}
+
+          {/* fabricage-meldingen: altijd zichtbaar, ongeacht de stap */}
+          {(validation.errors.length > 0 || validation.warnings.length > 0) && (
+            <div className="space-y-1.5">
+              {validation.errors.map((msg) => (
+                <p key={msg} className="rounded-lg border border-rust/40 bg-rust/10 px-3 py-2 text-[12px] font-medium leading-relaxed text-rust" role="alert">
+                  {msg}
+                </p>
+              ))}
+              {validation.warnings.map((msg) => (
+                <p key={msg} className="rounded-lg bg-white/5 px-3 py-2 text-[12px] leading-relaxed text-white/70">
+                  ⚠ {msg}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* stap-navigatie met live prijs */}
+          {step < 3 && (
+            <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-4">
+              {step > 0 ? (
+                <button
+                  onClick={() => setStep(step - 1)}
+                  className="rounded-xl bg-white/5 px-4 py-2.5 text-[13px] font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  Terug
+                </button>
+              ) : (
+                <span />
+              )}
+              <div className="hidden text-right lg:block">
+                <div className="text-[11px] text-white/40">Totaal incl. btw</div>
+                <div className="text-[16px] font-extrabold leading-tight tabular-nums">
+                  {euro(price.total)}
+                </div>
+              </div>
+              <button
+                onClick={() => setStep(step + 1)}
+                className="flex items-center gap-1.5 rounded-xl bg-rust px-5 py-2.5 text-[14px] font-semibold text-white transition-colors hover:bg-rust-deep active:scale-[.99]"
+              >
+                Volgende
+                <ChevronDown size={14} strokeWidth={2} className="-rotate-90" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

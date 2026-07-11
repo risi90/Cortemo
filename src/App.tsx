@@ -13,6 +13,7 @@ import { Checkout } from './views/Checkout'
 import { Story } from './views/Story'
 import { Service } from './views/Service'
 import { OrderTracker } from './views/OrderTracker'
+import { EigenOntwerp } from './views/EigenOntwerp'
 import { Admin } from './views/Admin'
 import { GROUPS, hydrateCatalog, hydrateCollections, PRODUCTS, type GroupId } from './data/catalog'
 import { ACCELERATOR, cartCount, type CartItem } from './lib/cart'
@@ -28,6 +29,7 @@ type Page =
   | 'service'
   | 'admin'
   | 'volgen'
+  | 'eigen'
 type View = 'root' | 'list' | 'pdp' | Page
 
 type NavState = {
@@ -47,6 +49,7 @@ const PAGES: Page[] = [
   'service',
   'admin',
   'volgen',
+  'eigen',
 ]
 
 /** Nette, SEO-vriendelijke paden per pagina (met SPA-rewrite op de host). */
@@ -59,6 +62,7 @@ const PAGE_PATHS: Record<Page, string> = {
   service: '/service',
   admin: '/beheer',
   volgen: '/volg-je-order',
+  eigen: '/eigen-ontwerp',
 }
 
 function stateFromLocation(): NavState {
@@ -118,6 +122,7 @@ function applySeo(s: NavState) {
     service: 'Service, levering & voorwaarden — Cortemo',
     admin: 'Beheer — Cortemo',
     volgen: 'Volg je bestelling — Cortemo',
+    eigen: 'Eigen ontwerp & DXF-maatwerk — Cortemo',
   }
   const descriptions: Partial<Record<View, string>> = {
     root: 'Cortenstaal op maat: plantenbakken, keerwanden, borderranden en schuttingen. Ontwerp in 3D, zie direct de prijs en ontvang binnen 15 werkdagen.',
@@ -130,6 +135,8 @@ function applySeo(s: NavState) {
       'Veelgestelde vragen, levertijden, retourneren en de kern van onze voorwaarden en privacyverklaring.',
     volgen:
       'Volg je Cortemo-bestelling van werkplaats tot bezorging met je ordernummer en e-mailadres.',
+    eigen:
+      'Eigen DXF-tekening, verstek-hoeken of een compleet tuinplan: onze staalbouwers tekenen en calculeren je cortenstaal persoonlijk.',
   }
   document.title = titles[s.view]
   const setMeta = (name: string, content: string | null) => {
@@ -401,8 +408,12 @@ export function App() {
             }}
           />
         )}
-        {nav.view === 'maatwerk' && (
-          <Configurator onShop={() => openPage('root')} onAdd={addItem} />
+        {nav.view === 'maatwerk' && <Configurator onAdd={addItem} />}
+        {nav.view === 'eigen' && (
+          <EigenOntwerp
+            onShop={() => openPage('root')}
+            onConfigurator={() => openPage('maatwerk')}
+          />
         )}
         {nav.view === 'checkout' && (
           <Checkout items={items} onClear={() => setItems([])} onShop={() => openPage('root')} />
