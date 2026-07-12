@@ -31,7 +31,7 @@ const CAPABILITIES = [
   'Kanten',
 ]
 
-export function Story({ onConfigurator }: { onConfigurator: () => void }) {
+export function Story() {
   return (
     <div className="mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-16">
       <p className="text-[12px] font-semibold uppercase tracking-[.2em] text-rust">Ons verhaal</p>
@@ -72,12 +72,12 @@ export function Story({ onConfigurator }: { onConfigurator: () => void }) {
               tekening tot gemonteerd eindproduct: onze machines en vakmensen staan ook voor jouw
               project klaar.
             </p>
-            <button
-              onClick={onConfigurator}
-              className="mt-6 flex items-center gap-2 rounded-xl bg-rust px-5 py-3 text-[14px] font-semibold text-white transition-colors hover:bg-rust-deep"
+            <a
+              href="/eigen-ontwerp"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-rust px-5 py-3 text-[14px] font-semibold text-white transition-colors hover:bg-rust-deep"
             >
               Leg ons je project voor <ArrowRight size={15} strokeWidth={2} />
-            </button>
+            </a>
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap gap-2">

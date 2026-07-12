@@ -344,6 +344,7 @@ export default function Configurator3D({
                   key={label}
                   onClick={() => setStep(i)}
                   aria-current={active ? 'step' : undefined}
+                  aria-label={'Stap ' + (i + 1) + ' van ' + WIZARD_STEPS.length + ': ' + label}
                   className={
                     'flex flex-col items-center gap-1.5 rounded-xl px-1 py-2 transition-colors ' +
                     (active ? 'bg-white/5' : 'hover:bg-white/5')

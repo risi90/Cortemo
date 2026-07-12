@@ -32,7 +32,7 @@ type MiniProduct = {
 }
 
 const MINI_CATS = [
-  { id: 'hoogte', label: 'Hoogte' },
+  { id: 'hoogte', label: 'Randen & wanden' },
   { id: 'planten', label: 'Planten' },
   { id: 'vuurwater', label: 'Vuur & water' },
   { id: 'deco', label: 'Decoratie' },
@@ -323,7 +323,7 @@ export function MiniConfigurator({
           Stel je product samen
         </h2>
 
-        <div className="flex gap-1 rounded-xl bg-ink/5 p-1">
+        <div className="flex gap-1 overflow-x-auto rounded-xl bg-ink/5 p-1">
           {MINI_CATS.map((c) => (
             <button
               key={c.id}

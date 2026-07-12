@@ -78,7 +78,7 @@ export function ProductList({
                 <ProductImage src={p.img || GROUP_IMG[p.group]} label={p.name} radius={0} />
               </div>
               <span className="pointer-events-none absolute bottom-4 right-4 rounded-full bg-white/90 px-4 py-2 text-[12px] font-semibold text-ink shadow-sm transition-opacity duration-300 sm:opacity-0 sm:group-hover:opacity-100">
-                Configureer &rarr;
+                Bekijk product &rarr;
               </span>
             </div>
             <div className="mt-3.5 flex items-baseline justify-between gap-3 px-1">

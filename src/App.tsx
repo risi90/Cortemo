@@ -418,7 +418,7 @@ export function App() {
         {nav.view === 'checkout' && (
           <Checkout items={items} onClear={() => setItems([])} onShop={() => openPage('root')} />
         )}
-        {nav.view === 'verhaal' && <Story onConfigurator={() => openPage('maatwerk')} />}
+        {nav.view === 'verhaal' && <Story />}
         {nav.view === 'service' && <Service />}
         {nav.view === 'volgen' && <OrderTracker />}
         {nav.view === 'admin' && <Admin onExit={() => openPage('root')} />}

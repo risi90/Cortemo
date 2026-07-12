@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { FileUp, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import type { CartItem } from '../lib/cart'
 
 // De 3D-configurator (three.js) wordt lazy geladen zodat de webshop zelf
@@ -36,25 +36,6 @@ export function Configurator({ onAdd }: { onAdd: (item: Omit<CartItem, 'qty'>) =
         </Suspense>
       </div>
 
-      {/* complexe wensen horen niet in het stappenplan: rustige doorklik */}
-      <a
-        href="/eigen-ontwerp"
-        className="liquid-glass mt-8 flex flex-wrap items-center gap-4 rounded-2xl p-5 text-white transition-all hover:-translate-y-0.5"
-      >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-rust">
-          <FileUp size={18} strokeWidth={2} />
-        </span>
-        <span className="min-w-0 flex-1 basis-48">
-          <span className="block text-[14px] font-semibold">Eigen ontwerp of DXF-tekening?</span>
-          <span className="block text-[12px] text-white/70">
-            Verstek-hoeken, uitsparingen of een compleet tuinplan — wij tekenen en calculeren
-            persoonlijk.
-          </span>
-        </span>
-        <span className="whitespace-nowrap text-[13px] font-semibold text-rust">
-          Naar eigen ontwerp &rarr;
-        </span>
-      </a>
     </div>
   )
 }
